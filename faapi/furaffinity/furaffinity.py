@@ -8,42 +8,45 @@ from urllib.robotparser import RobotFileParser
 
 from faapi.base import FAAPI_BASE
 
-from .connection import CloudflareScraper
-from .connection import CookieDict
-from .connection import Response
-from .connection import get
-from .connection import get_robots
-from .connection import join_url
-from .connection import make_session
-from .connection import stream_binary
-from .exceptions import DisallowedPath
-from .exceptions import Unauthorized
-from .journal import Journal
-from .journal import JournalPartial
+from ..connection import CloudflareScraper
+from ..connection import CookieDict
+from ..connection import Response
+from ..connection import get
+from ..connection import get_robots
+from ..connection import join_url
+from ..connection import make_session
+from ..connection import stream_binary
+from ..exceptions import DisallowedPath
+from ..exceptions import Unauthorized
+from ..journal import Journal
+from ..journal import JournalPartial
 from .parse import BeautifulSoup
 from .parse import check_page_raise
 from .parse import parse_loggedin_user
-from .parse import parse_page
 from .parse import parse_submission_figures
 from .parse import parse_user_favorites
 from .parse import parse_user_journals
 from .parse import parse_user_submissions
 from .parse import parse_watchlist
 from .parse import username_url
-from .submission import Submission
-from .submission import SubmissionPartial
-from .user import User
-from .user import UserPartial
+from ..submission import Submission
+from ..submission import SubmissionPartial
+from ..user import User
+from ..user import UserPartial
+from . import parse
 
 
 class FAAPI(FAAPI_BASE):
     """
     This class provides the methods to access and parse Fur Affinity pages and retrieve objects.
     """
-
-    @property
-    def root(self) -> str:
+    @staticmethod
+    def root() -> str:
         return "https://www.furaffinity.net"
+
+    @staticmethod
+    def parser():
+        return parse
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
@@ -51,7 +54,7 @@ class FAAPI(FAAPI_BASE):
         """
 
         self.session: CloudflareScraper = make_session(cookies)  # Session used for get requests
-        self.robots: RobotFileParser = get_robots(self.session, self.root)  # robots.txt handler
+        self.robots: RobotFileParser = get_robots(self.session, self.root())  # robots.txt handler
         self.last_get: float = time() - self.crawl_delay  # Time of last get (UNIX time)
         self.raise_for_unauthorized: bool = True  # Control login checks
         self.timeout: Optional[int] = None  # Timeout for requests
@@ -224,3 +227,9 @@ class FAAPI(FAAPI_BASE):
             _user.status = s
             users.append(_user)
         return (users, np if np and np != page else None, [])
+
+    def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
+        return parse_loggedin_user(page)
+
+    def check_page_raise(self, page: BeautifulSoup) -> None:
+        check_page_raise(page)

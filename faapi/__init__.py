@@ -1,5 +1,5 @@
 from .__version__ import __version__
-from .furaffinity import FAAPI
+from .furaffinity.furaffinity import FAAPI
 from .comment import Comment
 from .journal import Journal
 from .journal import JournalPartial
