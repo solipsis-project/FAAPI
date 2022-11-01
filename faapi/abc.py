@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from http.cookiejar import CookieJar
 from typing import Any
@@ -6,14 +8,16 @@ from typing import Union
 
 from .connection import CookieDict
 from .connection import Response
-from .journal import Journal
-from .journal import JournalPartial
 from .parse import BeautifulSoup
-from .submission import Submission
-from .submission import SubmissionPartial
-from .user import User
-from .user import UserPartial
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .submission import Submission
+    from .submission import SubmissionPartial
+    from .user import User
+    from .user import UserPartial
+    from .journal import Journal
+    from .journal import JournalPartial
 
 # noinspection GrazieInspection
 class FAAPI_ABC(ABC):
