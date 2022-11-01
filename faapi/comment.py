@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Type
 from typing import Union
 
 from bs4.element import Tag
 
 import faapi
+from faapi.abc import FAAPI_ABC
 from .exceptions import _raise_exception
 from .parse import html_to_bbcode
 from .parse import parse_comment_tag
@@ -15,7 +16,7 @@ class Comment:
     Contains comment information and references to replies and parent objects.
     """
 
-    def __init__(self, tag: Tag = None, parent: Union[faapi.submission.Submission, faapi.journal.Journal] = None):
+    def __init__(self, parserClass: Type[FAAPI_ABC], tag: Tag = None, parent: Union[faapi.submission.Submission, faapi.journal.Journal] = None):
         """
         :param tag: The comment tag from which to parse information
         :param parent: The parent object of the comment
@@ -25,7 +26,7 @@ class Comment:
         self.comment_tag: Optional[Tag] = tag
 
         self.id: int = 0
-        self.author: faapi.user.UserPartial = faapi.user.UserPartial()
+        self.author: faapi.user.UserPartial = faapi.user.UserPartial(parserClass)
         self.date: datetime = datetime.fromtimestamp(0)
         self.text: str = ""
         self.replies: list[Comment] = []
@@ -33,6 +34,7 @@ class Comment:
         self.edited: bool = False
         self.hidden: bool = False
         self.parent: Optional[Union[faapi.submission.Submission, faapi.journal.Journal]] = parent
+        self.parserClass = parserClass
 
         self.parse()
 
@@ -127,7 +129,7 @@ class Comment:
 
         self.id = parsed["id"]
         self.date = datetime.fromtimestamp(parsed["timestamp"])
-        self.author = faapi.user.UserPartial()
+        self.author = faapi.user.UserPartial(self.parserClass)
         self.author.name = parsed["user_name"]
         self.author.title = parsed["user_title"]
         self.author.user_icon_url = parsed["user_icon_url"]
@@ -166,7 +168,7 @@ def _set_reply_to(comment: Comment, reply_to: Union[Comment, int]) -> Comment:
 
 
 def _remove_recursion(comment: Comment) -> Comment:
-    comment_new: Comment = Comment()
+    comment_new: Comment = Comment(comment.parserClass)
 
     comment_new.comment_tag = comment.comment_tag
     comment_new.id = comment.id

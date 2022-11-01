@@ -1,7 +1,8 @@
 from collections import namedtuple
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Type
 
+from faapi.abc import FAAPI_ABC
 from .connection import join_url
 from .connection import root
 from .exceptions import _raise_exception
@@ -38,10 +39,11 @@ class SubmissionBase:
     Base class for the submission objects.
     """
 
-    def __init__(self):
+    def __init__(self, parserClass: Type[FAAPI_ABC]):
         self.id: int = 0
         self.title: str = ""
-        self.author: UserPartial = UserPartial()
+        self.author: UserPartial = UserPartial(parserClass)
+        self.parserClass = parserClass
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -107,14 +109,14 @@ class SubmissionPartial(SubmissionBase):
     Contains partial submission information gathered from submissions pages (gallery, scraps, etc.).
     """
 
-    def __init__(self, submission_figure: Tag = None):
+    def __init__(self, parserClass: Type[FAAPI_ABC], submission_figure: Tag = None):
         """
         :param submission_figure: The figure tag from which to parse the submission information.
         """
         assert submission_figure is None or isinstance(submission_figure, Tag), \
             _raise_exception(TypeError(f"submission_figure must be {None} or {BeautifulSoup.__name__}"))
 
-        super().__init__()
+        super().__init__(parserClass)
 
         self.submission_figure: Optional[Tag] = submission_figure
         self.rating: str = ""
@@ -159,14 +161,14 @@ class Submission(SubmissionBase):
     Contains complete submission information gathered from submission pages, including comments.
     """
 
-    def __init__(self, submission_page: BeautifulSoup = None):
+    def __init__(self, parserClass: Type[FAAPI_ABC], submission_page: BeautifulSoup = None):
         """
         :param submission_page: The page from which to parse the submission information.
         """
         assert submission_page is None or isinstance(submission_page, BeautifulSoup), \
             _raise_exception(TypeError(f"submission_page must be {None} or {BeautifulSoup.__name__}"))
 
-        super().__init__()
+        super().__init__(parserClass)
 
         self.submission_page: Optional[BeautifulSoup] = submission_page
         self.date: datetime = datetime.fromtimestamp(0)

@@ -1,6 +1,8 @@
 from collections import namedtuple
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Type
+
+from faapi.abc import FAAPI_ABC
 
 from .connection import join_url
 from .connection import root
@@ -34,9 +36,10 @@ class UserBase:
     Base class for the user objects.
     """
 
-    def __init__(self):
+    def __init__(self, parserClass: Type[FAAPI_ABC]):
         self.name: str = ""
         self.status: str = ""
+        self.parserClass = parserClass
 
     def __hash__(self) -> int:
         return hash(self.name_url)
@@ -118,14 +121,14 @@ class UserPartial(UserBase):
     Contains partial user information gathered from user folders (gallery, journals, etc.) and submission/journal pages.
     """
 
-    def __init__(self, user_tag: Tag = None):
+    def __init__(self, parserClass : Type[FAAPI_ABC], user_tag: Tag = None):
         """
         :param user_tag: The tag from which to parse the user information.
         """
         assert user_tag is None or isinstance(user_tag, Tag), \
             _raise_exception(TypeError(f"user_tag must be {None} or {Tag.__name__}"))
 
-        super().__init__()
+        super().__init__(parserClass)
 
         self.user_tag: Optional[Tag] = user_tag
         self.title: str = ""
@@ -167,14 +170,14 @@ class User(UserBase):
     Contains complete user information gathered from userpages.
     """
 
-    def __init__(self, user_page: BeautifulSoup = None):
+    def __init__(self, parserClass : Type[FAAPI_ABC], user_page: BeautifulSoup = None):
         """
         :param user_page: The page from which to parse the user information.
         """
         assert user_page is None or isinstance(user_page, BeautifulSoup), \
             _raise_exception(TypeError(f"user_page must be {None} or {BeautifulSoup.__name__}"))
 
-        super().__init__()
+        super().__init__(parserClass)
 
         self.user_page: Optional[BeautifulSoup] = user_page
         self.title: str = ""

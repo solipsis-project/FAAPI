@@ -1,7 +1,9 @@
 from collections import namedtuple
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Type
 from typing import Union
+
+from faapi.abc import FAAPI_ABC
 
 from .connection import join_url
 from .connection import root
@@ -24,14 +26,15 @@ class JournalStats(namedtuple("JournalStats", ["comments"])):
 
 
 class JournalBase:
-    def __init__(self):
+    def __init__(self, parserClass: Type[FAAPI_ABC]):
         self.id: int = 0
         self.title: str = ""
         self.date: datetime = datetime.fromtimestamp(0)
-        self.author: UserPartial = UserPartial()
+        self.author: UserPartial = UserPartial(parserClass)
         self.stats: JournalStats = JournalStats(0)
         self.content: str = ""
         self.mentions: list[str] = []
+        self.parserClass = parserClass;
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -110,7 +113,7 @@ class JournalPartial(JournalBase):
     Contains partial journal information gathered from journals pages.
     """
 
-    def __init__(self, journal_tag: Tag = None):
+    def __init__(self,  parserClass : Type[FAAPI_ABC], journal_tag: Tag = None):
         """
         :param journal_tag: The tag from which to parse the journal.
         """
@@ -118,7 +121,7 @@ class JournalPartial(JournalBase):
             _raise_exception(TypeError(f"journal_item must be {None} or {Tag.__name__}"))
         self.journal_tag: Optional[Tag] = journal_tag
 
-        super(JournalPartial, self).__init__()
+        super(JournalPartial, self).__init__(parserClass)
 
         self.parse()
 
@@ -156,7 +159,7 @@ class Journal(JournalBase):
     Contains complete journal information gathered from journal pages, including comments.
     """
 
-    def __init__(self, journal_page: BeautifulSoup = None):
+    def __init__(self, parserClass : Type[FAAPI_ABC], journal_page: BeautifulSoup = None):
         """
         :param journal_page: The page from which to parse the journal.
         """
@@ -164,7 +167,7 @@ class Journal(JournalBase):
             _raise_exception(TypeError(f"journal_item must be {None} or {BeautifulSoup.__name__}"))
         self.journal_page: Optional[BeautifulSoup] = journal_page
 
-        super(Journal, self).__init__()
+        super(Journal, self).__init__(parserClass)
 
         self.header: str = ""
         self.footer: str = ""
@@ -231,4 +234,4 @@ class Journal(JournalBase):
         self.footer = parsed["footer"]
         self.mentions = parsed["mentions"]
         from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(t, self) for t in parse_comments(self.journal_page)])
+        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in parse_comments(self.journal_page)])
