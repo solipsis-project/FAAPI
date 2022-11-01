@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Optional, Type
 
 from faapi.abc import FAAPI_ABC
+
 from .connection import join_url
-from .connection import root
 from .exceptions import _raise_exception
 from .parse import BeautifulSoup
 from .parse import Tag
@@ -101,7 +101,7 @@ class SubmissionBase:
 
         :return: The URL to the submission.
         """
-        return join_url(root, "view", self.id)
+        return join_url(self.parserClass.root(), "view", self.id)
 
 
 class SubmissionPartial(SubmissionBase):

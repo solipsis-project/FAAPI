@@ -44,13 +44,12 @@ def make_session(cookies: Union[list[CookieDict], CookieJar]) -> CloudflareScrap
     return session
 
 
-def get_robots(session: Session) -> RobotFileParser:
+def get_robots(session: Session, root: str) -> RobotFileParser:
     robots: RobotFileParser = RobotFileParser(url := join_url(root, "robots.txt"))
     robots.parse(filter(re_compile(r"^[^#\s].+").match, map(str.strip, session.get(url).text.splitlines())))
     return robots
 
-
-def get(session: CloudflareScraper, path: str, *, timeout: int = None,
+def get(session: CloudflareScraper, root: str, path: str, *, timeout: int = None,
         params: dict[str, Union[str, bytes, int, float]] = None) -> Response:
     return session.get(join_url(root, path), params=params, timeout=timeout)
 

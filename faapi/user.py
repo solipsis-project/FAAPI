@@ -5,7 +5,6 @@ from typing import Optional, Type
 from faapi.abc import FAAPI_ABC
 
 from .connection import join_url
-from .connection import root
 from .exceptions import _raise_exception
 from .parse import BeautifulSoup
 from .parse import Tag
@@ -105,7 +104,7 @@ class UserBase:
 
         :return: The URL to the user.
         """
-        return join_url(root, "user", self.name_url)
+        return join_url(self.parserClass.root(), "user", self.name_url)
 
     def generate_user_icon_url(self) -> str:
         """

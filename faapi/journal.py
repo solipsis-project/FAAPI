@@ -6,7 +6,6 @@ from typing import Union
 from faapi.abc import FAAPI_ABC
 
 from .connection import join_url
-from .connection import root
 from .exceptions import _raise_exception
 from .parse import BeautifulSoup
 from .parse import check_page_raise
@@ -105,7 +104,7 @@ class JournalBase:
 
         :return: The URL to the journal.
         """
-        return join_url(root, "journal", self.id)
+        return join_url(self.parserClass.root(), "journal", self.id)
 
 
 class JournalPartial(JournalBase):

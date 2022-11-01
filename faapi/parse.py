@@ -17,7 +17,6 @@ from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 from htmlmin import minify  # type:ignore
 
-from .connection import root
 from .exceptions import DisabledAccount
 from .exceptions import NoTitle
 from .exceptions import NonePage
@@ -26,6 +25,8 @@ from .exceptions import NoticeMessage
 from .exceptions import ParsingError
 from .exceptions import ServerError
 from .exceptions import _raise_exception
+
+root = "https://furaffinity.net"
 
 relative_url: Pattern = re_compile(r"^(?:https?://(?:www\.)?furaffinity\.net)?(.*)")
 mentions_regexp: Pattern = re_compile(r"^(?:(?:https?://)?(?:www\.)?furaffinity\.net)?/user/([^/#]+).*$")
