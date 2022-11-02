@@ -6,13 +6,8 @@ from faapi.interface.faapi_abc import FAAPI_ABC
 
 from .connection import join_url
 from .exceptions import _raise_exception
-from .parse import BeautifulSoup
-from .parse import Tag
-from .parse import check_page_raise
-from .parse import html_to_bbcode
-from .parse import parse_comments
-from .parse import parse_submission_figure
-from .parse import parse_submission_page
+from bs4 import BeautifulSoup
+from bs4 import Tag
 from .user import UserPartial
 
 
@@ -146,7 +141,7 @@ class SubmissionPartial(SubmissionBase):
         if self.submission_figure is None:
             return
 
-        parsed: dict = parse_submission_figure(self.submission_figure)
+        parsed: dict = self.parserClass.parser().parse_submission_figure(self.submission_figure)
 
         self.id = parsed["id"]
         self.title = parsed["title"]
@@ -228,7 +223,7 @@ class Submission(SubmissionBase):
 
         :return: BBCode description
         """
-        return html_to_bbcode(self.description)
+        return self.parserClass.parser().html_to_bbcode(self.description)
 
     @property
     def footer_bbcode(self) -> str:
@@ -237,7 +232,7 @@ class Submission(SubmissionBase):
 
         :return: BBCode footer
         """
-        return html_to_bbcode(self.footer)
+        return self.parserClass.parser().html_to_bbcode(self.footer)
 
     def parse(self, submission_page: BeautifulSoup = None):
         """
@@ -252,9 +247,9 @@ class Submission(SubmissionBase):
         if self.submission_page is None:
             return
 
-        check_page_raise(self.submission_page)
+        self.parserClass.parser().check_page_raise(self.submission_page)
 
-        parsed: dict = parse_submission_page(self.submission_page)
+        parsed: dict = self.parserClass.parser().parse_submission_page(self.submission_page)
 
         self.id = parsed["id"]
         self.title = parsed["title"]
@@ -281,4 +276,4 @@ class Submission(SubmissionBase):
         self.favorite = parsed["unfav_link"] is not None
         self.favorite_toggle_link = parsed["fav_link"] or parsed["unfav_link"]
         from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(t, self) for t in parse_comments(self.submission_page)])
+        self.comments = sort_comments([Comment(t, self) for t in self.parserClass.parser().parse_comments(self.submission_page)])

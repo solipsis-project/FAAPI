@@ -7,9 +7,6 @@ from bs4.element import Tag
 import faapi
 from faapi.interface.faapi_abc import FAAPI_ABC
 from .exceptions import _raise_exception
-from .parse import html_to_bbcode
-from .parse import parse_comment_tag
-
 
 class Comment:
     """
@@ -101,7 +98,7 @@ class Comment:
 
         :return: BBCode text
         """
-        return html_to_bbcode(self.text)
+        return self.parserClass.parser().html_to_bbcode(self.text)
 
     @property
     def url(self):
@@ -125,7 +122,7 @@ class Comment:
         if self.comment_tag is None:
             return
 
-        parsed: dict = parse_comment_tag(self.comment_tag)
+        parsed: dict = self.parserClass.parser().parse_comment_tag(self.comment_tag)
 
         self.id = parsed["id"]
         self.date = datetime.fromtimestamp(parsed["timestamp"])

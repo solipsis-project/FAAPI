@@ -7,13 +7,8 @@ from faapi.interface.faapi_abc import FAAPI_ABC
 
 from .connection import join_url
 from .exceptions import _raise_exception
-from .parse import BeautifulSoup
-from .parse import check_page_raise
-from .parse import html_to_bbcode
-from .parse import parse_comments
-from .parse import parse_journal_page
-from .parse import parse_journal_section
-from .parse import Tag
+from bs4 import BeautifulSoup
+from bs4 import Tag
 from .user import UserPartial
 
 
@@ -95,7 +90,7 @@ class JournalBase:
 
         :return: BBCode content
         """
-        return html_to_bbcode(self.content)
+        return self.parserClass.parser().html_to_bbcode(self.content)
 
     @property
     def url(self) -> str:
@@ -137,7 +132,7 @@ class JournalPartial(JournalBase):
         if self.journal_tag is None:
             return
 
-        parsed: dict = parse_journal_section(self.journal_tag)
+        parsed: dict = self.parserClass.parser().parse_journal_section(self.journal_tag)
 
         # noinspection DuplicatedCode
         self.id = parsed["id"]
@@ -190,7 +185,7 @@ class Journal(JournalBase):
 
         :return: BBCode header
         """
-        return html_to_bbcode(self.header)
+        return self.parserClass.parser().html_to_bbcode(self.header)
 
     @property
     def footer_bbcode(self) -> str:
@@ -199,7 +194,7 @@ class Journal(JournalBase):
 
         :return: BBCode footer
         """
-        return html_to_bbcode(self.footer)
+        return self.parserClass.parser().html_to_bbcode(self.footer)
 
     def parse(self, journal_page: Union[Tag, BeautifulSoup] = None):
         """
@@ -214,9 +209,9 @@ class Journal(JournalBase):
         if self.journal_page is None:
             return
 
-        check_page_raise(self.journal_page)
+        self.parserClass.parser().check_page_raise(self.journal_page)
 
-        parsed: dict = parse_journal_page(self.journal_page)
+        parsed: dict = self.parserClass.parser().parse_journal_page(self.journal_page)
 
         # noinspection DuplicatedCode
         self.id = parsed["id"]
@@ -233,4 +228,4 @@ class Journal(JournalBase):
         self.footer = parsed["footer"]
         self.mentions = parsed["mentions"]
         from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in parse_comments(self.journal_page)])
+        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in self.parserClass.parser().parse_comments(self.journal_page)])

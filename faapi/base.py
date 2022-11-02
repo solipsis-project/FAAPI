@@ -1,7 +1,8 @@
+from abc import abstractmethod
 from http.cookiejar import CookieJar
 from time import sleep
 from time import time
-from typing import Union
+from typing import Optional, Union
 
 from .connection import CookieDict
 from .connection import Response
@@ -10,10 +11,8 @@ from .connection import make_session
 from .connection import stream_binary
 from .exceptions import DisallowedPath
 from .exceptions import Unauthorized
-from .parse import BeautifulSoup
-from .parse import check_page_raise
-from .parse import parse_loggedin_user
-from .parse import parse_page
+from bs4 import BeautifulSoup
+from .parse import parse_html_page
 from .submission import Submission
 from .interface.faapi_abc import FAAPI_ABC
 
@@ -85,7 +84,7 @@ class FAAPI_BASE(FAAPI_ABC):
         """
         self.check_path(path, raise_for_disallowed=True)
         self.handle_delay()
-        return get(self.session, self.root, path, timeout=self.timeout, params=params)
+        return get(self.session, self.root(), path, timeout=self.timeout, params=params)
 
     def get_parsed(self, path: str, *, skip_page_check: bool = False, skip_auth_check: bool = False,
                    **params: Union[str, bytes, int, float]) -> BeautifulSoup:
@@ -100,12 +99,20 @@ class FAAPI_BASE(FAAPI_ABC):
         """
         response: Response = self.get(path, **params)
         response.raise_for_status()
-        page: BeautifulSoup = parse_page(response.text)
+        page: BeautifulSoup = parse_html_page(response.text)
         if not skip_page_check:
-            check_page_raise(page)
-        if not skip_auth_check and self.raise_for_unauthorized and not parse_loggedin_user(page):
+            self.check_page_raise(page)
+        if not skip_auth_check and self.raise_for_unauthorized and not self.parse_loggedin_user(page):
             raise Unauthorized("Not logged in")
         return page
+
+    @abstractmethod
+    def parse_loggedin_user(page: BeautifulSoup) -> Optional[str]:
+        ...
+
+    @abstractmethod
+    def check_page_raise(page: BeautifulSoup) -> None:
+        ...
 
     def submission_file(self, submission: Submission, *, chunk_size: int = None) -> bytes:
         """

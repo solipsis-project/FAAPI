@@ -6,13 +6,8 @@ from faapi.interface.faapi_abc import FAAPI_ABC
 
 from .connection import join_url
 from .exceptions import _raise_exception
-from .parse import BeautifulSoup
-from .parse import Tag
-from .parse import check_page_raise
-from .parse import html_to_bbcode
-from .parse import parse_user_page
-from .parse import parse_user_tag
-from .parse import username_url
+from bs4 import BeautifulSoup
+from bs4 import Tag
 
 
 class UserStats(namedtuple("UserStats", ["views", "submissions", "favorites", "comments_earned",
@@ -47,35 +42,35 @@ class UserBase:
         if isinstance(other, UserBase):
             return other.name_url == self.name_url
         elif isinstance(other, str):
-            return username_url(other) == self.name_url
+            return self.parserClass.parser().username_url(other) == self.name_url
         return False
 
     def __gt__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url > other.name_url
         elif isinstance(other, str):
-            return self.name_url > username_url(other)
+            return self.name_url > self.parserClass.parser().username_url(other)
         return False
 
     def __ge__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url >= other.name_url
         elif isinstance(other, str):
-            return self.name_url >= username_url(other)
+            return self.name_url >= self.parserClass.parser().username_url(other)
         return False
 
     def __lt__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url < other.name_url
         elif isinstance(other, str):
-            return self.name_url < username_url(other)
+            return self.name_url < self.parserClass.parser().username_url(other)
         return False
 
     def __le__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url <= other.name_url
         elif isinstance(other, str):
-            return self.name_url <= username_url(other)
+            return self.name_url <= self.parserClass.parser().username_url(other)
         return False
 
     def __iter__(self):
@@ -95,7 +90,7 @@ class UserBase:
 
         :return: The cleaned username.
         """
-        return username_url(self.name)
+        return self.parserClass.parser().username_url(self.name)
 
     @property
     def url(self):
@@ -156,7 +151,7 @@ class UserPartial(UserBase):
         if self.user_tag is None:
             return
 
-        parsed: dict = parse_user_tag(self.user_tag)
+        parsed: dict = self.parserClass.parser().parse_user_tag(self.user_tag)
 
         self.name = parsed["name"]
         self.status = parsed["status"]
@@ -215,7 +210,7 @@ class User(UserBase):
 
         :return: BBCode profile
         """
-        return html_to_bbcode(self.profile)
+        return self.parserClass.parser().html_to_bbcode(self.profile)
 
     def parse(self, user_page: BeautifulSoup = None):
         """
@@ -230,9 +225,9 @@ class User(UserBase):
         if self.user_page is None:
             return
 
-        check_page_raise(self.user_page)
+        self.parserClass.parser().check_page_raise(self.user_page)
 
-        parsed: dict = parse_user_page(self.user_page)
+        parsed: dict = self.parserClass.parser().parse_user_page(self.user_page)
 
         self.name = parsed["name"]
         self.status = parsed["status"]
