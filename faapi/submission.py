@@ -276,4 +276,4 @@ class Submission(SubmissionBase):
         self.favorite = parsed["unfav_link"] is not None
         self.favorite_toggle_link = parsed["fav_link"] or parsed["unfav_link"]
         from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(t, self) for t in self.parserClass.parser().parse_comments(self.submission_page)])
+        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in self.parserClass.parser().parse_comments(self.submission_page)])

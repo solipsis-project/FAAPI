@@ -15,7 +15,9 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
-from htmlmin import minify  # type:ignore
+from htmlmin import minify # type:ignore
+
+from faapi.parse import parse_html_page  
 
 from ..exceptions import DisabledAccount
 from ..exceptions import NoTitle
@@ -79,7 +81,7 @@ def clean_html(html: str) -> str:
 
 
 def html_to_bbcode(html: str) -> str:
-    body: Optional[Tag] = parse_page(f"<html><body>{html}</body></html>").select_one("html > body")
+    body: Optional[Tag] = parse_html_page(f"<html><body>{html}</body></html>").select_one("html > body")
     if not body:
         return ""
 
@@ -320,7 +322,7 @@ def bbcode_to_html(bbcode: str) -> str:
 
     bbcode = sub(r"-{5,}", "[hr]", bbcode)
 
-    result_page: BeautifulSoup = parse_extra(parse_page(parser.format(bbcode)))
+    result_page: BeautifulSoup = parse_extra(parse_html_page(parser.format(bbcode)))
     return (result_page.select_one("html > body") or result_page).decode_contents()
 
 

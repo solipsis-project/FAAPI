@@ -6,6 +6,8 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
+from .parse_abc import ParserABC
+
 from ..connection import CookieDict
 from ..connection import Response
 from ..parse import BeautifulSoup
@@ -27,14 +29,14 @@ class FAAPI_ABC(ABC):
 
     @staticmethod
     @abstractmethod
-    def root(self) -> str:
+    def root() -> str:
         """
         The root URL for the backend server
         """
 
     @staticmethod
     @abstractmethod
-    def parser(self):
+    def parser() -> ParserABC:
         """
         The module containing all the parser methods.
         """

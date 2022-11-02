@@ -3,6 +3,7 @@ from http.cookiejar import CookieJar
 from time import sleep
 from time import time
 from typing import Optional, Union
+from urllib.robotparser import RobotFileParser
 
 from .connection import CookieDict
 from .connection import Response
@@ -17,6 +18,11 @@ from .submission import Submission
 from .interface.faapi_abc import FAAPI_ABC
 
 class FAAPI_BASE(FAAPI_ABC):
+
+    def __init__(self, robots: RobotFileParser, timeout: Optional[int], raise_for_unauthorized : bool):
+        self.robots = robots
+        self.timeout = timeout
+        self.raise_for_unauthorized = raise_for_unauthorized
 
     @property
     def user_agent(self) -> str:
@@ -107,11 +113,11 @@ class FAAPI_BASE(FAAPI_ABC):
         return page
 
     @abstractmethod
-    def parse_loggedin_user(page: BeautifulSoup) -> Optional[str]:
+    def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
         ...
 
     @abstractmethod
-    def check_page_raise(page: BeautifulSoup) -> None:
+    def check_page_raise(self, page: BeautifulSoup) -> None:
         ...
 
     def submission_file(self, submission: Submission, *, chunk_size: int = None) -> bytes:

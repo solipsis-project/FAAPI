@@ -54,10 +54,16 @@ class FAAPI(FAAPI_BASE):
         """
 
         self.session: CloudflareScraper = make_session(cookies)  # Session used for get requests
-        self.robots: RobotFileParser = get_robots(self.session, self.root())  # robots.txt handler
+        
+        super().__init__(
+            robots = get_robots(self.session, self.root()),  # robots.txt handler
+            timeout = None,  # Timeout for requests
+            raise_for_unauthorized = True  # Control login checks
+        )
+        
         self.last_get: float = time() - self.crawl_delay  # Time of last get (UNIX time)
-        self.raise_for_unauthorized: bool = True  # Control login checks
-        self.timeout: Optional[int] = None  # Timeout for requests
+        
+        
     
     @property
     def login_status(self) -> bool:
@@ -160,7 +166,7 @@ class FAAPI(FAAPI_BASE):
             s.author = author
         return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
 
-    def favorites(self, user: str, page: Any = "") -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
+    def favorites(self, user: str, page: Any = "") -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's favorites page.
 
