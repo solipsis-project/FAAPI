@@ -20,20 +20,20 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .parse import BeautifulSoup
-from .parse import check_page_raise
-from .parse import parse_loggedin_user
-from .parse import parse_submission_figures
-from .parse import parse_user_favorites
-from .parse import parse_user_journals
-from .parse import parse_user_submissions
-from .parse import parse_watchlist
-from .parse import username_url
+from .furaffinity_parser import BeautifulSoup
+from .furaffinity_parser import check_page_raise
+from .furaffinity_parser import parse_loggedin_user
+from .furaffinity_parser import parse_submission_figures
+from .furaffinity_parser import parse_user_favorites
+from .furaffinity_parser import parse_user_journals
+from .furaffinity_parser import parse_user_submissions
+from .furaffinity_parser import parse_watchlist
+from .furaffinity_parser import username_url
 from ..submission import Submission
 from ..submission import SubmissionPartial
 from ..user import User
 from ..user import UserPartial
-from . import parse
+from . import furaffinity_parser
 
 
 class FAAPI(FAAPI_BASE):
@@ -46,7 +46,7 @@ class FAAPI(FAAPI_BASE):
 
     @staticmethod
     def parser():
-        return parse
+        return furaffinity_parser
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
