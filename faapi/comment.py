@@ -5,7 +5,7 @@ from typing import Union
 from bs4.element import Tag
 
 import faapi
-from faapi.abc import FAAPI_ABC
+from faapi.interface.faapi_abc import FAAPI_ABC
 from .exceptions import _raise_exception
 from .parse import html_to_bbcode
 from .parse import parse_comment_tag

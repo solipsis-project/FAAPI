@@ -6,18 +6,18 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-from .connection import CookieDict
-from .connection import Response
-from .parse import BeautifulSoup
+from ..connection import CookieDict
+from ..connection import Response
+from ..parse import BeautifulSoup
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .submission import Submission
-    from .submission import SubmissionPartial
-    from .user import User
-    from .user import UserPartial
-    from .journal import Journal
-    from .journal import JournalPartial
+    from ..submission import Submission
+    from ..submission import SubmissionPartial
+    from ..user import User
+    from ..user import UserPartial
+    from ..journal import Journal
+    from ..journal import JournalPartial
 
 # noinspection GrazieInspection
 class FAAPI_ABC(ABC):

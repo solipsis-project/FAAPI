@@ -15,7 +15,7 @@ from .parse import check_page_raise
 from .parse import parse_loggedin_user
 from .parse import parse_page
 from .submission import Submission
-from .abc import FAAPI_ABC
+from .interface.faapi_abc import FAAPI_ABC
 
 class FAAPI_BASE(FAAPI_ABC):
 

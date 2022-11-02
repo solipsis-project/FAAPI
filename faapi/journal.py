@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, Type
 from typing import Union
 
-from faapi.abc import FAAPI_ABC
+from faapi.interface.faapi_abc import FAAPI_ABC
 
 from .connection import join_url
 from .exceptions import _raise_exception
