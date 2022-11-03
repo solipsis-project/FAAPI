@@ -1,4 +1,5 @@
 from collections import namedtuple
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Type
 
@@ -104,16 +105,23 @@ class SubmissionPartial(SubmissionBase):
     Contains partial submission information gathered from submissions pages (gallery, scraps, etc.).
     """
 
-    def __init__(self, parserClass: Type[FAAPI_ABC], submission_figure: Tag = None):
+    @dataclass
+    class Record:
+        id: int
+        title: str
+        author: str
+        rating: str
+        type: str
+        thumbnail_url: str
+
+    def __init__(self, parserClass: Type[FAAPI_ABC], submission_figure: Optional[Record] = None):
         """
         :param submission_figure: The figure tag from which to parse the submission information.
         """
-        assert submission_figure is None or isinstance(submission_figure, Tag), \
-            _raise_exception(TypeError(f"submission_figure must be {None} or {BeautifulSoup.__name__}"))
 
         super().__init__(parserClass)
 
-        self.submission_figure: Optional[Tag] = submission_figure
+        self.submission_figure: Optional[SubmissionPartial.Record] = submission_figure
         self.rating: str = ""
         self.type: str = ""
         self.thumbnail_url: str = ""
@@ -128,27 +136,25 @@ class SubmissionPartial(SubmissionBase):
         yield "type", self.type
         yield "thumbnail_url", self.thumbnail_url
 
-    def parse(self, submission_figure: Tag = None):
+    def parse(self, submission_figure: Optional[Record] = None):
         """
         Parse a submission figure Tag, overrides any information already present in the object.
 
         :param submission_figure: The optional figure tag from which to parse the submission.
         """
-        assert submission_figure is None or isinstance(submission_figure, Tag), \
-            _raise_exception(TypeError(f"submission_figure must be {None} or {BeautifulSoup.__name__}"))
 
         self.submission_figure = submission_figure or self.submission_figure
         if self.submission_figure is None:
             return
 
-        parsed: dict = self.parserClass.parser().parse_submission_figure(self.submission_figure)
+        # parsed: dict = self.parserClass.parser().parse_submission_figure(self.submission_figure)
 
-        self.id = parsed["id"]
-        self.title = parsed["title"]
-        self.author.name = parsed["author"]
-        self.rating = parsed["rating"]
-        self.type = parsed["type"]
-        self.thumbnail_url = parsed["thumbnail_url"]
+        self.id = self.submission_figure.id
+        self.title = self.submission_figure.title
+        self.author.name = self.submission_figure.author
+        self.rating = self.submission_figure.rating
+        self.type = self.submission_figure.type
+        self.thumbnail_url = self.submission_figure.thumbnail_url
 
 
 class Submission(SubmissionBase):
@@ -156,16 +162,44 @@ class Submission(SubmissionBase):
     Contains complete submission information gathered from submission pages, including comments.
     """
 
-    def __init__(self, parserClass: Type[FAAPI_ABC], submission_page: BeautifulSoup = None):
+    @dataclass
+    class Record:
+        id: int
+        title: str
+        author: str
+        rating: str
+        type: str
+        thumbnail_url: str
+        author_title: str
+        author_icon_url: str
+        date: datetime
+        tags: list[str]
+        category: str
+        species: str
+        gender: str
+        views: int
+        comment_count: int
+        favorites: int
+        description: str
+        footer: str
+        mentions: list[str]
+        folder: str
+        user_folders: list[SubmissionUserFolder] 
+        file_url: str
+        prev: Optional[int]
+        next: Optional[int]
+        favorite: bool
+        favorite_toggle_link: str
+
+
+    def __init__(self, parserClass: Type[FAAPI_ABC], submission_page: Optional[Record] = None):
         """
         :param submission_page: The page from which to parse the submission information.
         """
-        assert submission_page is None or isinstance(submission_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"submission_page must be {None} or {BeautifulSoup.__name__}"))
 
         super().__init__(parserClass)
 
-        self.submission_page: Optional[BeautifulSoup] = submission_page
+        self.submission_page: Optional[Submission.Record] = submission_page
         self.date: datetime = datetime.fromtimestamp(0)
         self.tags: list[str] = []
         self.category: str = ""
@@ -234,46 +268,39 @@ class Submission(SubmissionBase):
         """
         return self.parserClass.parser().html_to_bbcode(self.footer)
 
-    def parse(self, submission_page: BeautifulSoup = None):
+    def parse(self, submission_page: Optional[Record] = None):
         """
         Parse a submission page, overrides any information already present in the object.
 
         :param submission_page: The optional page from which to parse the submission.
         """
-        assert submission_page is None or isinstance(submission_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"submission_page must be {None} or {BeautifulSoup.__name__}"))
 
         self.submission_page = submission_page or self.submission_page
         if self.submission_page is None:
             return
 
-        self.parserClass.parser().check_page_raise(self.submission_page)
-
-        parsed: dict = self.parserClass.parser().parse_submission_page(self.submission_page)
-
-        self.id = parsed["id"]
-        self.title = parsed["title"]
-        self.author.name = parsed["author"]
-        self.author.title = parsed["author_title"]
-        self.author.user_icon_url = parsed["author_icon_url"]
-        self.date = parsed["date"]
-        self.tags = parsed["tags"]
-        self.category = parsed["category"]
-        self.species = parsed["species"]
-        self.gender = parsed["gender"]
-        self.rating = parsed["rating"]
-        self.stats = SubmissionStats(parsed["views"], parsed["comment_count"], parsed["favorites"])
-        self.type = parsed["type"]
-        self.description = parsed["description"]
-        self.footer = parsed["footer"]
-        self.mentions = parsed["mentions"]
-        self.folder = parsed["folder"]
-        self.user_folders = [SubmissionUserFolder(*f) for f in parsed["user_folders"]]
-        self.file_url = parsed["file_url"]
-        self.thumbnail_url = parsed["thumbnail_url"]
-        self.prev = parsed["prev"]
-        self.next = parsed["next"]
-        self.favorite = parsed["unfav_link"] is not None
-        self.favorite_toggle_link = parsed["fav_link"] or parsed["unfav_link"]
-        from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in self.parserClass.parser().parse_comments(self.submission_page)])
+        self.id = self.submission_page.id
+        self.title = self.submission_page.title
+        self.author.name = self.submission_page.author
+        self.author.title = self.submission_page.author_title
+        self.author.user_icon_url = self.submission_page.author_icon_url
+        self.date = self.submission_page.date
+        self.tags = self.submission_page.tags
+        self.category = self.submission_page.category
+        self.species = self.submission_page.species
+        self.gender = self.submission_page.gender
+        self.rating = self.submission_page.rating
+        self.stats = SubmissionStats(self.submission_page.views, self.submission_page.comment_count, self.submission_page.favorites)
+        self.type = self.submission_page.type
+        self.description = self.submission_page.description
+        self.footer = self.submission_page.footer
+        self.mentions = self.submission_page.mentions
+        self.folder = self.submission_page.folder
+        self.user_folders = self.submission_page.user_folders
+        self.file_url = self.submission_page.file_url
+        self.thumbnail_url = self.submission_page.thumbnail_url
+        self.prev = self.submission_page.prev
+        self.next = self.submission_page.next
+        self.favorite = self.submission_page.favorite
+        self.favorite_toggle_link = self.submission_page.favorite_toggle_link
+        

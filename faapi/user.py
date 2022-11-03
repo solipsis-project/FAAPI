@@ -1,4 +1,5 @@
 from collections import namedtuple
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Type
 
@@ -81,7 +82,7 @@ class UserBase:
         return self.__str__()
 
     def __str__(self):
-        return self.status + self.name
+        return str(self.status) + str(self.name)
 
     @property
     def name_url(self):
@@ -115,16 +116,22 @@ class UserPartial(UserBase):
     Contains partial user information gathered from user folders (gallery, journals, etc.) and submission/journal pages.
     """
 
-    def __init__(self, parserClass : Type[FAAPI_ABC], user_tag: Tag = None):
+    @dataclass
+    class Record:
+        name: str
+        status: str
+        title: str
+        join_date: datetime
+        user_icon_url: str
+
+    def __init__(self, parserClass : Type[FAAPI_ABC], user_tag: Optional[Record] = None):
         """
         :param user_tag: The tag from which to parse the user information.
         """
-        assert user_tag is None or isinstance(user_tag, Tag), \
-            _raise_exception(TypeError(f"user_tag must be {None} or {Tag.__name__}"))
 
         super().__init__(parserClass)
 
-        self.user_tag: Optional[Tag] = user_tag
+        self.user_tag: Optional[UserPartial.Record] = user_tag
         self.title: str = ""
         self.join_date: datetime = datetime.fromtimestamp(0)
         self.user_icon_url: str = ""
@@ -138,42 +145,53 @@ class UserPartial(UserBase):
         yield "join_date", self.join_date
         yield "user_icon_url", self.user_icon_url
 
-    def parse(self, user_tag: Tag = None):
+    def parse(self, user_tag: Optional[Record] = None):
         """
         Parse a user page, overrides any information already present in the object.
 
         :param user_tag: The tag from which to parse the user information.
         """
-        assert user_tag is None or isinstance(user_tag, Tag), \
-            _raise_exception(TypeError(f"user_tag must be {None} or {Tag.__name__}"))
 
         self.user_tag = user_tag or self.user_tag
         if self.user_tag is None:
             return
 
-        parsed: dict = self.parserClass.parser().parse_user_tag(self.user_tag)
+        # parsed: dict = self.parserClass.parser().parse_user_tag(self.user_tag)
 
-        self.name = parsed["name"]
-        self.status = parsed["status"]
-        self.title = parsed["title"]
-        self.join_date = parsed["join_date"]
-
+        self.name = self.user_tag.name
+        self.status = self.user_tag.status
+        self.title = self.user_tag.title
+        self.join_date = self.user_tag.join_date
+        self.user_icon_url = self.user_tag.user_icon_url
 
 class User(UserBase):
     """
     Contains complete user information gathered from userpages.
     """
 
-    def __init__(self, parserClass : Type[FAAPI_ABC], user_page: BeautifulSoup = None):
+    @dataclass
+    class Record:
+        name: str
+        status: str
+        profile: str
+        title: str
+        join_date: datetime
+        stats: UserStats
+        info: dict[str, str]
+        contacts: dict[str, str]
+        user_icon_url: str
+        watched: bool
+        watched_toggle_link: Optional[str]
+        blocked: bool
+        blocked_toggle_link: Optional[str]
+
+    def __init__(self, parserClass : Type[FAAPI_ABC], user_page: Optional[Record] = None):
         """
         :param user_page: The page from which to parse the user information.
         """
-        assert user_page is None or isinstance(user_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"user_page must be {None} or {BeautifulSoup.__name__}"))
 
         super().__init__(parserClass)
-
-        self.user_page: Optional[BeautifulSoup] = user_page
+        self.user_page: Optional[User.Record] = user_page
         self.title: str = ""
         self.join_date: datetime = datetime.fromtimestamp(0)
         self.profile: str = ""
@@ -212,33 +230,28 @@ class User(UserBase):
         """
         return self.parserClass.parser().html_to_bbcode(self.profile)
 
-    def parse(self, user_page: BeautifulSoup = None):
+    def parse(self, user_page: Optional[Record] = None):
         """
         Parse a user page, overrides any information already present in the object.
 
         :param user_page: The page from which to parse the user information.
         """
-        assert user_page is None or isinstance(user_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"user_page must be {None} or {BeautifulSoup.__name__}"))
-
         self.user_page = user_page or self.user_page
         if self.user_page is None:
             return
 
-        self.parserClass.parser().check_page_raise(self.user_page)
+        # parsed: dict = self.parserClass.parser().parse_user_page(self.user_page)
 
-        parsed: dict = self.parserClass.parser().parse_user_page(self.user_page)
-
-        self.name = parsed["name"]
-        self.status = parsed["status"]
-        self.profile = parsed["profile"]
-        self.title = parsed["title"]
-        self.join_date = parsed["join_date"]
-        self.stats = UserStats(*parsed["stats"])
-        self.info = parsed["info"]
-        self.contacts = parsed["contacts"]
-        self.user_icon_url = parsed["user_icon_url"]
-        self.watched = parsed["watch"] is None and parsed["unwatch"] is not None
-        self.watched_toggle_link = parsed["watch"] or parsed["unwatch"] or None
-        self.blocked = parsed["block"] is None and parsed["unblock"] is not None
-        self.blocked_toggle_link = parsed["block"] or parsed["unblock"] or None
+        self.name = self.user_page.name
+        self.status = self.user_page.status
+        self.profile = self.user_page.profile
+        self.title = self.user_page.title
+        self.join_date = self.user_page.join_date
+        self.stats = UserStats(*self.user_page.stats)
+        self.info = self.user_page.info
+        self.contacts = self.user_page.contacts
+        self.user_icon_url = self.user_page.user_icon_url
+        self.watched = self.user_page.watched
+        self.watched_toggle_link = self.user_page.watched_toggle_link
+        self.blocked = self.user_page.blocked
+        self.blocked_toggle_link = self.user_page.blocked_toggle_link

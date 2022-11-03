@@ -35,56 +35,5 @@ class ParserABC(ABC):
 
     @staticmethod
     @abstractmethod
-    def bbcode_to_html_(bbcode: str) -> str:
-        ...
-
-    @staticmethod
-    @abstractmethod
     def username_url(username: str) -> str:
         ...
-
-    @staticmethod
-    @abstractmethod
-    def parse_user_tag(user_tag: Tag) -> dict[str, Any]:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def check_page_raise(page: BeautifulSoup) -> None:
-        ...
-    
-    @staticmethod
-    @abstractmethod
-    def parse_submission_figure(figure_tag: Tag) -> dict[str, Any]:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
-        ...
-    
-    @staticmethod
-    @abstractmethod
-    def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def parse_comments(page: BeautifulSoup) -> list[Tag]:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def parse_journal_section(section_tag: Tag) -> dict[str, Any]:
-        ...
-    
-    @staticmethod
-    @abstractmethod
-    def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def parse_comment_tag(tag: Tag) -> dict:
-        ...
-       

@@ -1,6 +1,7 @@
 from collections import namedtuple
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Type
+from typing import List, Optional, Type
 from typing import Union
 
 from faapi.interface.faapi_abc import FAAPI_ABC
@@ -107,45 +108,55 @@ class JournalPartial(JournalBase):
     Contains partial journal information gathered from journals pages.
     """
 
-    def __init__(self,  parserClass : Type[FAAPI_ABC], journal_tag: Tag = None):
+    @dataclass
+    class Record:
+        id: int
+        title: str
+        comments: int
+        date: datetime
+        content: str
+        mentions: List[str]
+        user_name: str = ""
+        user_status: str = ""
+        user_title: str = ""
+        user_icon_url: str = ""
+        user_join_date: datetime = datetime.min
+
+    def __init__(self,  parserClass : Type[FAAPI_ABC], journal_tag: Optional[Record] = None):
         """
         :param journal_tag: The tag from which to parse the journal.
         """
-        assert journal_tag is None or isinstance(journal_tag, Tag), \
-            _raise_exception(TypeError(f"journal_item must be {None} or {Tag.__name__}"))
-        self.journal_tag: Optional[Tag] = journal_tag
+        self.journal_tag: Optional[JournalPartial.Record] = journal_tag
 
         super(JournalPartial, self).__init__(parserClass)
 
         self.parse()
 
-    def parse(self, journal_tag: Union[Tag, BeautifulSoup] = None):
+    def parse(self, journal_tag: Optional[Record] = None):
         """
         Parse a journal tag, overrides any information already present in the object.
 
         :param journal_tag: The tag from which to parse the journal.
         """
-        assert journal_tag is None or isinstance(journal_tag, BeautifulSoup), \
-            _raise_exception(TypeError(f"journal_item must be {None} or {BeautifulSoup.__name__}"))
 
         self.journal_tag = journal_tag or self.journal_tag
         if self.journal_tag is None:
             return
 
-        parsed: dict = self.parserClass.parser().parse_journal_section(self.journal_tag)
+        # parsed: dict = self.parserClass.parser().parse_journal_section(self.journal_tag)
 
         # noinspection DuplicatedCode
-        self.id = parsed["id"]
-        self.title = parsed["title"]
-        self.author.name = parsed.get("user_name", "")
-        self.author.status = parsed.get("user_status", "")
-        self.author.title = parsed.get("user_title", "")
-        self.author.join_date = parsed.get("user_join_date", "")
-        self.author.user_icon_url = parsed.get("user_icon_url", "")
-        self.stats = JournalStats(parsed["comments"])
-        self.date = parsed["date"]
-        self.content = parsed["content"]
-        self.mentions = parsed["mentions"]
+        self.id = self.journal_tag.id
+        self.title = self.journal_tag.title
+        self.author.name = self.journal_tag.user_name
+        self.author.status = self.journal_tag.user_status
+        self.author.title = self.journal_tag.user_title
+        self.author.join_date = self.journal_tag.user_join_date
+        self.author.user_icon_url = self.journal_tag.user_icon_url
+        self.stats = JournalStats(self.journal_tag.comments)
+        self.date = self.journal_tag.date
+        self.content = self.journal_tag.content
+        self.mentions = self.journal_tag.mentions
 
 
 class Journal(JournalBase):
@@ -153,13 +164,29 @@ class Journal(JournalBase):
     Contains complete journal information gathered from journal pages, including comments.
     """
 
-    def __init__(self, parserClass : Type[FAAPI_ABC], journal_page: BeautifulSoup = None):
+    @dataclass
+    class Record:
+        id: int
+        title: str
+        user_name: str
+        user_status: str
+        user_title: str
+        user_join_date: datetime
+        user_icon_url: str
+        date: datetime
+        content: str
+        header: str
+        footer: str
+        mentions: List[str]
+        from .comment import Comment
+        comments: List[Comment]
+
+    def __init__(self, parserClass : Type[FAAPI_ABC], journal_page: Optional[Record] = None):
         """
         :param journal_page: The page from which to parse the journal.
         """
-        assert journal_page is None or isinstance(journal_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"journal_item must be {None} or {BeautifulSoup.__name__}"))
-        self.journal_page: Optional[BeautifulSoup] = journal_page
+
+        self.journal_page: Optional[Journal.Record] = journal_page
 
         super(Journal, self).__init__(parserClass)
 
@@ -196,36 +223,29 @@ class Journal(JournalBase):
         """
         return self.parserClass.parser().html_to_bbcode(self.footer)
 
-    def parse(self, journal_page: Union[Tag, BeautifulSoup] = None):
+    def parse(self, journal_page: Optional[Record] = None):
         """
         Parse a journal page, overrides any information already present in the object.
 
         :param journal_page: The page from which to parse the journal.
         """
-        assert journal_page is None or isinstance(journal_page, BeautifulSoup), \
-            _raise_exception(TypeError(f"journal_item must be {None} or {BeautifulSoup.__name__}"))
-
         self.journal_page = journal_page or self.journal_page
         if self.journal_page is None:
             return
 
-        self.parserClass.parser().check_page_raise(self.journal_page)
-
-        parsed: dict = self.parserClass.parser().parse_journal_page(self.journal_page)
+        # parsed: dict = self.parserClass.parser().parse_journal_page(self.journal_page)
 
         # noinspection DuplicatedCode
-        self.id = parsed["id"]
-        self.title = parsed["title"]
-        self.author.name = parsed.get("user_name", "")
-        self.author.status = parsed.get("user_status", "")
-        self.author.title = parsed.get("user_title", "")
-        self.author.join_date = parsed.get("user_join_date", "")
-        self.author.user_icon_url = parsed.get("user_icon_url", "")
-        self.stats = JournalStats(parsed["comments"])
-        self.date = parsed["date"]
-        self.content = parsed["content"]
-        self.header = parsed["header"]
-        self.footer = parsed["footer"]
-        self.mentions = parsed["mentions"]
-        from .comment import sort_comments, Comment
-        self.comments = sort_comments([Comment(self.parserClass, t, self) for t in self.parserClass.parser().parse_comments(self.journal_page)])
+        self.id = self.journal_page.id
+        self.title = self.journal_page.title
+        self.author.name = self.journal_page.user_name
+        self.author.status = self.journal_page.user_status
+        self.author.title = self.journal_page.user_title
+        self.author.join_date = self.journal_page.user_join_date
+        self.author.user_icon_url = self.journal_page.user_icon_url
+        self.stats = JournalStats(self.journal_page.comments)
+        self.date = self.journal_page.date
+        self.content = self.journal_page.content
+        self.header = self.journal_page.header
+        self.footer = self.journal_page.footer
+        self.mentions = self.journal_page.mentions

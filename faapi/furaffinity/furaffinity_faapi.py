@@ -7,6 +7,7 @@ from typing import Union
 from urllib.robotparser import RobotFileParser
 
 from faapi.base import FAAPI_BASE
+from faapi.comment import Comment, sort_comments
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict
@@ -20,7 +21,7 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .furaffinity_parser import BeautifulSoup
+from .furaffinity_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page
 from .furaffinity_parser import check_page_raise
 from .furaffinity_parser import parse_loggedin_user
 from .furaffinity_parser import parse_submission_figures
@@ -89,7 +90,8 @@ class FAAPI(FAAPI_BASE):
         :return: A list of SubmissionPartial objects
         """
         page_parsed: BeautifulSoup = self.get_parsed("/")
-        submissions: list[SubmissionPartial] = [SubmissionPartial(FAAPI, f) for f in parse_submission_figures(page_parsed)]
+        submission_tags = parse_submission_figures(page_parsed)
+        submissions: list[SubmissionPartial] = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(f))) for f in submission_tags]
         return sorted({s for s in submissions}, reverse=True)
 
     def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
@@ -102,7 +104,15 @@ class FAAPI(FAAPI_BASE):
         :param chunk_size: The chunk_size to be used for the download (does not override get_file).
         :return: A Submission object and a bytes object (if the submission file is downloaded).
         """
-        sub: Submission = Submission(FAAPI, self.get_parsed(join_url("view", int(submission_id))))
+        beautiful_soup = self.get_parsed(join_url("view", int(submission_id)))
+        parsed_submission = parse_submission_page(beautiful_soup)
+        fav_link = parsed_submission.pop('fav_link')
+        unfav_link = parsed_submission.pop('unfav_link')
+        parsed_submission['favorite_toggle_link'] = fav_link or unfav_link
+        parsed_submission['favorite'] = unfav_link is not None
+        sub: Submission = Submission(FAAPI, Submission.Record(**parsed_submission))
+        comments = [Comment(FAAPI, Comment.Record(**parse_comment_tag(t)), sub) for t in parse_comments(beautiful_soup)]
+        sub.comments = sort_comments(comments)
         sub_file: Optional[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else None
         return sub, sub_file
 
@@ -113,7 +123,12 @@ class FAAPI(FAAPI_BASE):
         :param journal_id: The ID of the journal.
         :return: A Journal object.
         """
-        return Journal(FAAPI, self.get_parsed(join_url("journal", int(journal_id))))
+        beautiful_soup = self.get_parsed(join_url("journal", int(journal_id)))
+        parsed = Journal.Record(**parse_journal_page(beautiful_soup))
+        journal = Journal(FAAPI, parsed)
+        comments = [Comment(FAAPI, Comment.Record(**parse_comment_tag(t)), journal) for t in parse_comments(beautiful_soup)]
+        journal.comments = sort_comments(comments)
+        return journal
 
     def user(self, user: str) -> User:
         """
@@ -122,7 +137,17 @@ class FAAPI(FAAPI_BASE):
         :param user: The name of the user (_ characters are allowed).
         :return: A User object.
         """
-        return User(FAAPI, self.get_parsed(join_url("user", username_url(user))))
+        beautifulSoup = self.get_parsed(join_url("user", username_url(user)))
+        parsed_user = parse_user_page(beautifulSoup)
+        watch = parsed_user.pop("watch")
+        unwatch = parsed_user.pop("unwatch")
+        block = parsed_user.pop("block")
+        unblock = parsed_user.pop("unblock")
+        parsed_user["watched"] = watch is None and unwatch is not None
+        parsed_user["watched_toggle_link"] = watch or unwatch or None
+        parsed_user["blocked"] = block is None and unblock is not None
+        parsed_user["blocked_toggle_link"] = block or unblock or None
+        return User(FAAPI, User.Record(**parsed_user))
 
     # noinspection DuplicatedCode
     def gallery(self, user: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
@@ -141,7 +166,8 @@ class FAAPI(FAAPI_BASE):
             info_parsed["user_title"], info_parsed["user_join_date"],
             info_parsed["user_icon_url"]
         ]
-        for s in (submissions := list(map(lambda tag : SubmissionPartial(FAAPI, tag), info_parsed["figures"]))):
+        submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+        for s in submissions:
             s.author = author
         return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
 
@@ -162,7 +188,8 @@ class FAAPI(FAAPI_BASE):
             info_parsed["user_title"], info_parsed["user_join_date"],
             info_parsed["user_icon_url"]
         ]
-        for s in (submissions := list(map(lambda tag : SubmissionPartial(FAAPI, tag), info_parsed["figures"]))):
+        submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+        for s in submissions:
             s.author = author
         return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
 
@@ -176,7 +203,7 @@ class FAAPI(FAAPI_BASE):
         """
         page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", username_url(user), page.strip()))
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
-        submissions: list[SubmissionPartial] = list(map(lambda tag : SubmissionPartial(FAAPI, tag), info_parsed["figures"]))
+        submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         return (submissions, info_parsed["next_page"] or None, [])
 
     def journals(self, user: str, page: Any = 1) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
@@ -195,7 +222,10 @@ class FAAPI(FAAPI_BASE):
             info_parsed["user_title"], info_parsed["user_join_date"],
             info_parsed["user_icon_url"]
         ]
-        for j in (journals := list(map(lambda tag : JournalPartial(FAAPI, tag), info_parsed["sections"]))):
+        journals = [
+            JournalPartial(FAAPI, JournalPartial.Record(**parse_journal_section(tag)))
+                for tag in info_parsed["sections"]]
+        for j in journals:
             j.author = author
         return (journals, (page + 1) if not info_parsed["last_page"] else None, [])
 

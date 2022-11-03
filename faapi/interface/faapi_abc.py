@@ -6,7 +6,7 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-from .parse_abc import ParserABC
+from .parser_abc import ParserABC
 
 from ..connection import CookieDict
 from ..connection import Response

@@ -1,36 +1,57 @@
+from __future__ import annotations
+from dataclasses import dataclass
+
 from datetime import datetime
 from typing import Optional, Type
 from typing import Union
 
 from bs4.element import Tag
 
-import faapi
 from faapi.interface.faapi_abc import FAAPI_ABC
 from .exceptions import _raise_exception
+
+from faapi.user import UserPartial
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from faapi.submission import Submission
+    from faapi.journal import Journal
+    
+
 
 class Comment:
     """
     Contains comment information and references to replies and parent objects.
     """
 
-    def __init__(self, parserClass: Type[FAAPI_ABC], tag: Tag = None, parent: Union[faapi.submission.Submission, faapi.journal.Journal] = None):
+    @dataclass
+    class Record:
+        id: int
+        timestamp: datetime
+        user_name: str
+        user_title: str
+        user_icon_url: str
+        text: str
+        parent: int
+        edited: bool
+        hidden: bool
+
+    def __init__(self, parserClass: Type[FAAPI_ABC], tag: Optional[Record] = None, parent: Union[Submission, Journal] = None):
         """
         :param tag: The comment tag from which to parse information
         :param parent: The parent object of the comment
         """
-        assert tag is None or isinstance(tag, Tag), _raise_exception(TypeError(f"tag must be {None} or {Tag.__name__}"))
-
-        self.comment_tag: Optional[Tag] = tag
+        self.comment_tag: Optional[Comment.Record] = tag
 
         self.id: int = 0
-        self.author: faapi.user.UserPartial = faapi.user.UserPartial(parserClass)
+        self.author: UserPartial = UserPartial(parserClass)
         self.date: datetime = datetime.fromtimestamp(0)
         self.text: str = ""
         self.replies: list[Comment] = []
         self.reply_to: Optional[Union[Comment, int]] = None
         self.edited: bool = False
         self.hidden: bool = False
-        self.parent: Optional[Union[faapi.submission.Submission, faapi.journal.Journal]] = parent
+        self.parent: Optional[Union[Submission, Journal]] = parent
         self.parserClass = parserClass
 
         self.parse()
@@ -109,32 +130,27 @@ class Comment:
         """
         return "" if self.parent is None else f"{self.parent.url}#cid:{self.id}"
 
-    def parse(self, comment_tag: Tag = None):
+    def parse(self, comment_tag: Optional[Record] = None):
         """
         Parse a comment tag, overrides any information already present in the object.
 
         :param comment_tag: The comment tag from which to parse information
         """
-        assert comment_tag is None or isinstance(comment_tag, Tag), \
-            _raise_exception(TypeError(f"tag must be {None} or {Tag.__name__}"))
-
         self.comment_tag = comment_tag or self.comment_tag
         if self.comment_tag is None:
             return
 
-        parsed: dict = self.parserClass.parser().parse_comment_tag(self.comment_tag)
-
-        self.id = parsed["id"]
-        self.date = datetime.fromtimestamp(parsed["timestamp"])
-        self.author = faapi.user.UserPartial(self.parserClass)
-        self.author.name = parsed["user_name"]
-        self.author.title = parsed["user_title"]
-        self.author.user_icon_url = parsed["user_icon_url"]
-        self.text = parsed["text"]
+        self.id = self.comment_tag.id
+        self.date = self.comment_tag.timestamp
+        self.author = UserPartial(self.parserClass)
+        self.author.name = self.comment_tag.user_name
+        self.author.title = self.comment_tag.user_title
+        self.author.user_icon_url = self.comment_tag.user_icon_url
+        self.text = self.comment_tag.text
         self.replies = []
-        self.reply_to = parsed["parent"]
-        self.edited = parsed["edited"]
-        self.hidden = parsed["hidden"]
+        self.reply_to = self.comment_tag.parent
+        self.edited = self.comment_tag.edited
+        self.hidden = self.comment_tag.hidden
 
 
 def sort_comments(comments: list[Comment]) -> list[Comment]:
@@ -144,7 +160,9 @@ def sort_comments(comments: list[Comment]) -> list[Comment]:
     :param comments: A list of Comment objects (flat or tree-structured)
     :return: A tree-structured list of comments with replies
     """
+    print(comments)
     for comment in (comments := sorted(flatten_comments(comments))):
+        print(comment)
         comment.replies = [_set_reply_to(c, comment) for c in comments if c.reply_to == comment]
     return [c for c in comments if c.reply_to is None]
 
