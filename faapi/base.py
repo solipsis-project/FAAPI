@@ -1,12 +1,13 @@
 from abc import abstractmethod
 from http.cookiejar import CookieJar
+from requests import Response
 from time import sleep
 from time import time
 from typing import Optional, Union
 from urllib.robotparser import RobotFileParser
 
+
 from .connection import CookieDict
-from .connection import Response
 from .connection import get
 from .connection import make_session
 from .connection import stream_binary

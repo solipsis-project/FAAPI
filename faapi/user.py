@@ -1,5 +1,5 @@
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from datetime import datetime
 from typing import Optional, Type
 
@@ -118,6 +118,7 @@ class UserPartial(UserBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         name: str
         status: str
         title: str
@@ -171,6 +172,7 @@ class User(UserBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         name: str
         status: str
         profile: str

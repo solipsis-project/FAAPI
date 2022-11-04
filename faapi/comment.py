@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 
 from datetime import datetime
 from typing import Optional, Type
@@ -26,6 +26,7 @@ class Comment:
 
     @dataclass
     class Record:
+        _: KW_ONLY
         id: int
         timestamp: datetime
         user_name: str

@@ -1,5 +1,5 @@
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from datetime import datetime
 from typing import Optional, Type
 
@@ -107,12 +107,13 @@ class SubmissionPartial(SubmissionBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         id: int
         title: str
-        author: str
         rating: str
         type: str
         thumbnail_url: str
+        author: str = ""
 
     def __init__(self, parserClass: Type[FAAPI_ABC], submission_figure: Optional[Record] = None):
         """
@@ -164,6 +165,7 @@ class Submission(SubmissionBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         id: int
         title: str
         author: str

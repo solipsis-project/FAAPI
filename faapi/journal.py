@@ -1,5 +1,5 @@
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from datetime import datetime
 from typing import List, Optional, Type
 from typing import Union
@@ -110,6 +110,7 @@ class JournalPartial(JournalBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         id: int
         title: str
         comments: int
@@ -166,8 +167,10 @@ class Journal(JournalBase):
 
     @dataclass
     class Record:
+        _: KW_ONLY
         id: int
         title: str
+        comments: int
         user_name: str
         user_status: str
         user_title: str
@@ -178,8 +181,6 @@ class Journal(JournalBase):
         header: str
         footer: str
         mentions: List[str]
-        from .comment import Comment
-        comments: List[Comment]
 
     def __init__(self, parserClass : Type[FAAPI_ABC], journal_page: Optional[Record] = None):
         """
