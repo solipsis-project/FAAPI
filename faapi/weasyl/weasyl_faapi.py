@@ -299,14 +299,16 @@ class WeasylFAAPI(FAAPI_BASE):
         # Weasyl doesn't have scraps
         return ([], None, [])
 
+    """
     @functools.cache
     def get_user_id(self, username: str) -> str:
         favorites_overview_page = self.get_parsed(f"~{username}")
         follow_tag = favorites_overview_page.select_one("input[name=userid]")
         assert follow_tag is not None
         return follow_tag.attrs["value"]
+    """
         
-    def favorites(self, username: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+    def favorites(self, user: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's favorites page.
 
@@ -320,11 +322,9 @@ class WeasylFAAPI(FAAPI_BASE):
         # TODO: Should this also return favorite journals / characters?
         # To query favorites, we need a user id, which we can get from the user page or the "favorites overview page"
         # By caching the result of the helper function, we only make the extra query once per artist.
-
-        user_id = self.get_user_id(username)
         
-        get_params = { "userid": user_id, "feature": "submit"} | ({"nextid": page} if page is not None else {})
-        page_parsed: BeautifulSoup = self.get_parsed("favorites", **get_params)
+        get_params = { "feature": "submit"} | ({"nextid": page} if page is not None else {})
+        page_parsed: BeautifulSoup = self.get_parsed(f"favorites/{user}", **get_params)
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
         submissions = [SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         return (submissions, info_parsed["next_page"] or None, [])
@@ -350,10 +350,19 @@ class WeasylFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
-        # Thwe Weasyl API doesn't support examining a user's watchers. We'll have to use traditional scraping here.
-        # URL for journals: https://www.weasyl.com/followed/{username}
-        # TODO: Support querying watchers.
-        return ([], None, [])
+        page_parsed: BeautifulSoup = self.get_parsed(f"followed/{user}")
+        follower_tags = page_parsed.select(".grid-unit")
+        followers = [tag.a.attrs["title"] for tag in follower_tags]
+
+        next_page = None
+        href_re = re.compile("/following\\?userid=.*&nextid=(.*)")
+        def match_href(url: str):
+            match = href_re.match(url)
+            if match:
+                nonlocal next_page
+                next_page = match[1]
+        page_parsed.find("a", href=match_href)
+        return (followers, next_page, [])
 
     def watchlist_by(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
@@ -362,10 +371,19 @@ class WeasylFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
-        # Thwe Weasyl API doesn't support examining a user's watches. We'll have to use traditional scraping here.
-        # URL for journals: https://www.weasyl.com/following/{username}
-        # TODO: Support querying watches.
-        return ([], None, [])
+        page_parsed: BeautifulSoup = self.get_parsed(f"following/{user}")
+        follower_tags = page_parsed.select(".grid-unit")
+        followers = [tag.a.attrs["title"] for tag in follower_tags]
+
+        next_page = None
+        href_re = re.compile("/following\\?userid=.*&nextid=(.*)")
+        def match_href(url: str):
+            match = href_re.match(url)
+            if match:
+                nonlocal next_page
+                next_page = match[1]
+        page_parsed.find("a", href=match_href)
+        return (followers, next_page, [])
 
     def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
         username_tag = page.select_one("#username")
