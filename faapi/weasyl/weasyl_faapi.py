@@ -7,6 +7,7 @@ from typing import Optional
 from typing import Union
 from urllib.robotparser import RobotFileParser
 from bs4 import BeautifulSoup
+from dateutil.parser import parse as parse_date
 
 from faapi.base import FAAPI_BASE
 
@@ -27,6 +28,15 @@ from . import weasyl_parser
 
 from .weasyl_parser import parse_submission_figure, parse_user_favorites
 
+def convertRating(rating: str) -> str:
+    match rating:
+        case "general":
+            return "General"
+        case "mature":
+            return "Mature"
+        case "explicit":
+            return "Explicit"
+
 class WeasylFAAPI(FAAPI_BASE):
     """
     This class provides the methods to access and parse Fur Affinity pages and retrieve objects.
@@ -37,7 +47,7 @@ class WeasylFAAPI(FAAPI_BASE):
 
     @staticmethod
     def parser():
-        return weasyl_parser
+        return weasyl_parser.WeasylParser
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
@@ -65,7 +75,7 @@ class WeasylFAAPI(FAAPI_BASE):
         :param params: Query parameters for the request.
         :return: A BeautifulSoup object containing the parsed content of the request response.
         """
-        response: Response = self.get(f"{self.root()}{path}", **params)
+        response: Response = self.get(path, **params)
         if not skip_auth_check and self.raise_for_unauthorized and response.status_code == 401:
             raise Unauthorized("Not logged in")
         if response.status_code != 401:
@@ -110,12 +120,12 @@ class WeasylFAAPI(FAAPI_BASE):
 
         submissions: list[SubmissionPartial] = [
             SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(
-                id = f.submitid,
-                title = f.title,
-                author = f.owner,
-                rating = f.rating,
-                type = f.type,
-                thumbnail_url = f.media.thumbnail[0].url))
+                id = f["submitid"],
+                title = f["title"],
+                author = f["owner"],
+                rating = convertRating(f["rating"]),
+                type = f["type"],
+                thumbnail_url = f["media"]["thumbnail"][0]["url"]))
             for f in frontpage_submissions]
         return sorted({s for s in submissions}, reverse=True)
 
@@ -129,36 +139,36 @@ class WeasylFAAPI(FAAPI_BASE):
         :param chunk_size: The chunk_size to be used for the download (does not override get_file).
         :return: A Submission object and a bytes object (if the submission file is downloaded).
         """
-        assert response.submitid == submission_id
         response: Any = self.get_json(f"/api/submissions/{submission_id}/view")
+        assert response["submitid"] == submission_id
         sub: Submission = Submission(
             WeasylFAAPI,
             Submission.Record(
-                id = response.submitid,
-                title = response.title,
-                author = response.owner,
-                rating = response.rating,
-                type = response.type,
-                thumbnail_url = response.media["thumbnail-generated"][0].url,
+                id = response["submitid"],
+                title = response["title"],
+                author = response["owner"],
+                rating = convertRating(response["rating"]),
+                type = response["type"],
+                thumbnail_url = response["media"]["thumbnail-generated"][0]["url"],
                 author_title = "",
-                author_icon_url = response.owner_media.avatar[0].url,
-                date = datetime.fromisoformat(response.posted_at),
-                tags = response.tags,
-                category = response.subtype,
+                author_icon_url = response["owner_media"]["avatar"][0]["url"],
+                date = parse_date(response["posted_at"]),
+                tags = response["tags"],
+                category = response["subtype"],
                 species = "",
                 gender = "",
-                views = response.views,
-                comment_count = response.comments,
-                favorites = response.favorites,
-                description = response.description,
+                views = response["views"],
+                comment_count = response["comments"],
+                favorites = response["favorites"],
+                description = response["description"],
                 footer = "",
                 mentions = [],
                 folder = "gallery",
-                user_folders = [SubmissionUserFolder(response.folder_name, f"{self.root()}submissions/{response.owner_login}?folderid={response.folderid}", "")],
-                file_url = response.media.submission[0].url,
+                user_folders = [SubmissionUserFolder(response["folder_name"], f"{self.root()}submissions/{response['owner_login']}?folderid={response['folderid']}", "")],
+                file_url = response["media"]["submission"][0]["url"],
                 prev = 0,
                 next = 0,
-                favorite = response.favorited,
+                favorite = response["favorited"],
                 favorite_toggle_link = "",
             )
         )
@@ -176,18 +186,18 @@ class WeasylFAAPI(FAAPI_BASE):
         # Author join date isn't returned by the query. Use 0 time for now.
         # We can improve this with a second query.
         response: Any = self.get_json(f"/api/journals/{journal_id}/view")
-        assert response.journalId == journal_id
+        assert response["journalid"] == journal_id
         return Journal(WeasylFAAPI, Journal.Record(
-            id = response.journalId,
-            title = response.title,
-            user_name = response.owner,
+            id = response["journalid"],
+            title = response["title"],
+            user_name = response["owner"],
             user_title = "",
             user_status = "",
             user_join_date = datetime.min,
-            user_icon_url = response.owner_media.avatar[0].url,
-            comments = response.comments,
-            date = response.posted_at,
-            content = response.content,
+            user_icon_url = response["owner_media"]["avatar"][0]["url"],
+            comments = response["comments"],
+            date = parse_date(response["posted_at"]),
+            content = response["content"],
             header = "",
             footer = "",
             mentions = [],
@@ -204,7 +214,8 @@ class WeasylFAAPI(FAAPI_BASE):
             contacts = user_info.pop("user_links")
             del user_info["sorted_user_links"]
             result: Dict[str, str] = {}
-            for (location, urls) in contacts:
+            for location in contacts:
+                urls = contacts[location]
                 if len(urls) == 1:
                     result[location] = urls[0]
                 else:
@@ -214,24 +225,24 @@ class WeasylFAAPI(FAAPI_BASE):
 
         response: Any = self.get_json(f"/api/users/{user}/view")
         assert response["username"] == user
-        user_info, contact_info = parseUserInfo(response.user_info)
+        user_info, contact_info = parseUserInfo(response["user_info"])
         return User(WeasylFAAPI, User.Record(
-            name = response.username,
-            status = response.catchphrase,
-            profile = response.profile_text,
-            title = response.full_name,
-            join_date = datetime.fromisoformat(response.created_at),
+            name = response["username"],
+            status = response["catchphrase"],
+            profile = response["profile_text"],
+            title = response["full_name"],
+            join_date = parse_date(response["created_at"]),
             stats = UserStats(
-                views = response.statistics.page_views,
-                submissions = response.statistics.submissions,
-                favorites = response.statistics.faves_sent,
+                views = response["statistics"]["page_views"],
+                submissions = response["statistics"]["submissions"],
+                favorites = response["statistics"]["faves_sent"],
                 comments_earned = 0,
                 comments_made = 0,
-                journals = response.statistics.journals,
-                watched_by = response.statistics.followed,
-                watching = response.statistics.following
+                journals = response["statistics"]["journals"],
+                watched_by = response["statistics"]["followed"],
+                watching = response["statistics"]["following"]
             ),
-            info = user_info + response.commision_info,
+            info = user_info | response["commission_info"],
             contacts = contact_info,
             user_icon_url = response["media"]["avatar"][0]["url"],
             watched = response["relationship"]["follow"],
@@ -250,9 +261,10 @@ class WeasylFAAPI(FAAPI_BASE):
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
         response: Any
-        if page != None:
+        if page != None and page != 1:
             response = self.get_json(f"/api/users/{user}/gallery", nextid = page)
         else:
+            print(f"/api/users/{user}/gallery")
             response = self.get_json(f"/api/users/{user}/gallery")
             
         author: UserPartial = UserPartial(WeasylFAAPI, UserPartial.Record(
@@ -263,15 +275,15 @@ class WeasylFAAPI(FAAPI_BASE):
             user_icon_url = ""
         ))
         submissions = [SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(
-            id = s.submitid,
-            title = s.title,
-            rating = s.rating,
-            type = s.type,
-            thumbnail_url = s.media.thumbnail[0]["url"]
+            id = s["submitid"],
+            title = s["title"],
+            rating = convertRating(s["rating"]),
+            type = s["type"],
+            thumbnail_url = s["media"]["thumbnail"][0]["url"]
         )) for s in response["submissions"]]
         for s in submissions:
             s.author = author
-        return (submissions, response.nextid, [])
+        return (submissions, response["nextid"], [])
 
     # noinspection DuplicatedCode
     def scraps(self, user: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
@@ -285,7 +297,7 @@ class WeasylFAAPI(FAAPI_BASE):
         # Weasyl doesn't have scraps
         return ([], None, [])
 
-    def favorites(self, user: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+    def favorites(self, username: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's favorites page.
 
@@ -297,6 +309,7 @@ class WeasylFAAPI(FAAPI_BASE):
         # URL for favorites: https://www.weasyl.com/favorites?userid={id}&feature={submit|char|journal}&nextid={}
         # TODO: Support querying favorites.
         # TODO: Should this also return favorite journals / characters?
+        # To query favorites, we need a user id, which we can get from the user page or the "favorites overview page"
         get_params = { "userid": user, "feature": "submit"} | ({"nextid": page} if page is not None else {})
         page_parsed: BeautifulSoup = self.get_parsed("favorites", **get_params)
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
