@@ -1,5 +1,7 @@
 from datetime import datetime
+import functools
 from http.cookiejar import CookieJar
+import re
 from time import sleep
 from time import time
 from typing import Any, Dict, List, Tuple, Type
@@ -16,7 +18,7 @@ from ..connection import CookieDict
 from ..connection import Response
 from ..connection import get_robots
 from ..connection import make_session
-from ..exceptions import DisallowedPath, ParsingError
+from ..exceptions import DisallowedPath, NonePage, ParsingError
 from ..exceptions import Unauthorized
 from ..journal import Journal, JournalStats
 from ..journal import JournalPartial
@@ -297,6 +299,13 @@ class WeasylFAAPI(FAAPI_BASE):
         # Weasyl doesn't have scraps
         return ([], None, [])
 
+    @functools.cache
+    def get_user_id(self, username: str) -> str:
+        favorites_overview_page = self.get_parsed(f"~{username}")
+        follow_tag = favorites_overview_page.select_one("input[name=userid]")
+        assert follow_tag is not None
+        return follow_tag.attrs["value"]
+        
     def favorites(self, username: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's favorites page.
@@ -310,7 +319,11 @@ class WeasylFAAPI(FAAPI_BASE):
         # TODO: Support querying favorites.
         # TODO: Should this also return favorite journals / characters?
         # To query favorites, we need a user id, which we can get from the user page or the "favorites overview page"
-        get_params = { "userid": user, "feature": "submit"} | ({"nextid": page} if page is not None else {})
+        # By caching the result of the helper function, we only make the extra query once per artist.
+
+        user_id = self.get_user_id(username)
+        
+        get_params = { "userid": user_id, "feature": "submit"} | ({"nextid": page} if page is not None else {})
         page_parsed: BeautifulSoup = self.get_parsed("favorites", **get_params)
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
         submissions = [SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
@@ -355,7 +368,10 @@ class WeasylFAAPI(FAAPI_BASE):
         return ([], None, [])
 
     def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
-        raise NotImplemented
+        username_tag = page.select_one("#username")
+        return username_tag.text if username_tag else None
 
     def check_page_raise(self, page: BeautifulSoup) -> None:
-        raise NotImplemented
+        # Weasyl returns a non-200 status code on failure.
+        if page is None:
+            raise NonePage

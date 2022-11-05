@@ -84,7 +84,7 @@ def parse_submission_figure(figure_tag: Tag) -> dict[str, Any]:
     title: str = tag_title.attrs["title"]
     author: str = tag_author.attrs["title"][3:]
     rating: str = ""
-    type_: str = ""
+    type_: str = "submission"
     thumbnail_url: str = tag_thumbnail.attrs["src"]
 
     return {
@@ -105,7 +105,7 @@ def parse_user_tag(user_tag: Tag) -> dict[str, Any]:
 
     user_info = user_id_tag.text.split("/")
     title = user_info[0]
-    status = user_info[4]
+    status = user_info[4] if len(user_info) >= 5 else ""
     join_date: datetime = datetime.min
 
     return {
@@ -134,8 +134,8 @@ def parse_submission_figures(figures_page: BeautifulSoup) -> list[Tag]:
 
 def parse_user_favorites(favorites_page: BeautifulSoup) -> dict[str, Any]:
     user_info: dict[str, str] = parse_user_folder(favorites_page)
-    next_page: str
-    href_re = re.compile("https://www.weasyl.com/favorites?userid=.*&feature=submit&nextid=(.*)")
+    next_page: str = None
+    href_re = re.compile("/favorites\\?userid=.*&feature=submit&nextid=(.*)")
     def match_href(url: str):
         match = href_re.match(url)
         if match:
