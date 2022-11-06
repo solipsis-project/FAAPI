@@ -43,35 +43,35 @@ class UserBase:
         if isinstance(other, UserBase):
             return other.name_url == self.name_url
         elif isinstance(other, str):
-            return self.parserClass.parser().username_url(other) == self.name_url
+            return self.parserClass.username_url(other) == self.name_url
         return False
 
     def __gt__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url > other.name_url
         elif isinstance(other, str):
-            return self.name_url > self.parserClass.parser().username_url(other)
+            return self.name_url > self.parserClass.username_url(other)
         return False
 
     def __ge__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url >= other.name_url
         elif isinstance(other, str):
-            return self.name_url >= self.parserClass.parser().username_url(other)
+            return self.name_url >= self.parserClass.username_url(other)
         return False
 
     def __lt__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url < other.name_url
         elif isinstance(other, str):
-            return self.name_url < self.parserClass.parser().username_url(other)
+            return self.name_url < self.parserClass.username_url(other)
         return False
 
     def __le__(self, other) -> bool:
         if isinstance(other, UserBase):
             return self.name_url <= other.name_url
         elif isinstance(other, str):
-            return self.name_url <= self.parserClass.parser().username_url(other)
+            return self.name_url <= self.parserClass.username_url(other)
         return False
 
     def __iter__(self):
@@ -91,7 +91,7 @@ class UserBase:
 
         :return: The cleaned username.
         """
-        return self.parserClass.parser().username_url(self.name)
+        return self.parserClass.username_url(self.name)
 
     @property
     def url(self):
@@ -230,7 +230,7 @@ class User(UserBase):
 
         :return: BBCode profile
         """
-        return self.parserClass.parser().html_to_bbcode(self.profile)
+        return self.parserClass.html_to_bbcode(self.profile)
 
     def parse(self, user_page: Optional[Record] = None):
         """

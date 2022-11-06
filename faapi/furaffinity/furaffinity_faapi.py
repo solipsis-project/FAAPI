@@ -30,6 +30,7 @@ from .furaffinity_parser import parse_user_journals
 from .furaffinity_parser import parse_user_submissions
 from .furaffinity_parser import parse_watchlist
 from .furaffinity_parser import username_url
+from .furaffinity_parser import html_to_bbcode
 from ..submission import Submission
 from ..submission import SubmissionPartial
 from ..user import User
@@ -44,10 +45,6 @@ class FAAPI(FAAPI_BASE):
     @staticmethod
     def root() -> str:
         return "https://www.furaffinity.net"
-
-    @staticmethod
-    def parser():
-        return furaffinity_parser
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
@@ -269,3 +266,11 @@ class FAAPI(FAAPI_BASE):
 
     def check_page_raise(self, page: BeautifulSoup) -> None:
         check_page_raise(page)
+
+    @staticmethod
+    def html_to_bbcode(html: str) -> str:
+        return html_to_bbcode(str)
+
+    @staticmethod
+    def username_url(username: str) -> str:
+        return username_url(username)

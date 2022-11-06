@@ -91,7 +91,7 @@ class JournalBase:
 
         :return: BBCode content
         """
-        return self.parserClass.parser().html_to_bbcode(self.content)
+        return self.parserClass.html_to_bbcode(self.content)
 
     @property
     def url(self) -> str:
@@ -213,7 +213,7 @@ class Journal(JournalBase):
 
         :return: BBCode header
         """
-        return self.parserClass.parser().html_to_bbcode(self.header)
+        return self.parserClass.html_to_bbcode(self.header)
 
     @property
     def footer_bbcode(self) -> str:
@@ -222,7 +222,7 @@ class Journal(JournalBase):
 
         :return: BBCode footer
         """
-        return self.parserClass.parser().html_to_bbcode(self.footer)
+        return self.parserClass.html_to_bbcode(self.footer)
 
     def parse(self, journal_page: Optional[Record] = None):
         """

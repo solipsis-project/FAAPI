@@ -259,7 +259,7 @@ class Submission(SubmissionBase):
 
         :return: BBCode description
         """
-        return self.parserClass.parser().html_to_bbcode(self.description)
+        return self.parserClass.html_to_bbcode(self.description)
 
     @property
     def footer_bbcode(self) -> str:
@@ -268,7 +268,7 @@ class Submission(SubmissionBase):
 
         :return: BBCode footer
         """
-        return self.parserClass.parser().html_to_bbcode(self.footer)
+        return self.parserClass.html_to_bbcode(self.footer)
 
     def parse(self, submission_page: Optional[Record] = None):
         """

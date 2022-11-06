@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import functools
 from http.cookiejar import CookieJar
 import re
+from re import sub
 from time import sleep
 from time import time
 from typing import Any, Dict, List, Tuple, Type
@@ -60,10 +61,6 @@ class WeasylFAAPI(FAAPI_BASE):
     @staticmethod
     def root() -> str:
         return "https://www.weasyl.com/"
-
-    @staticmethod
-    def parser():
-        return weasyl_parser.WeasylParser
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
@@ -141,7 +138,7 @@ class WeasylFAAPI(FAAPI_BASE):
                 title = f["title"],
                 author = f["owner"],
                 rating = convertRating(f["rating"]),
-                type = computeTypeFromExtension(f["media"]["submission"][0]["url"].split(".")[-1], f["submitid"]),
+                type = computeTypeFromExtension(f["media"]["thumbnail"][0]["url"].split(".")[-1], f["submitid"]),
                 thumbnail_url = f["media"]["thumbnail"][0]["url"]))
             for f in frontpage_submissions if f["type"] == "submission"]
         return sorted({s for s in submissions}, reverse=True)
@@ -295,7 +292,7 @@ class WeasylFAAPI(FAAPI_BASE):
             id = s["submitid"],
             title = s["title"],
             rating = convertRating(s["rating"]),
-            type = computeTypeFromExtension(s["media"]["submission"][0]["url"].split(".")[-1]),
+            type = computeTypeFromExtension(s["media"]["thumbnail"][0]["url"].split(".")[-1], s["submitid"]),
             thumbnail_url = s["media"]["thumbnail"][0]["url"]
         )) for s in response["submissions"]]
         for s in submissions:
@@ -438,3 +435,11 @@ class WeasylFAAPI(FAAPI_BASE):
         # Weasyl returns a non-200 status code on failure.
         if page is None:
             raise NonePage
+
+    @staticmethod
+    def html_to_bbcode(html: str) -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def username_url(username: str) -> str:
+        return sub(r"[^a-z\d.~-]", "", username.lower())

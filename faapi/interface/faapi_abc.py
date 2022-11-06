@@ -34,13 +34,6 @@ class FAAPI_ABC(ABC):
         The root URL for the backend server
         """
 
-    @staticmethod
-    @abstractmethod
-    def parser() -> ParserABC:
-        """
-        The module containing all the parser methods.
-        """
-
     @property
     @abstractmethod
     def user_agent(self) -> str:

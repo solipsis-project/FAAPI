@@ -120,7 +120,7 @@ class Comment:
 
         :return: BBCode text
         """
-        return self.parserClass.parser().html_to_bbcode(self.text)
+        return self.parserClass.html_to_bbcode(self.text)
 
     @property
     def url(self):

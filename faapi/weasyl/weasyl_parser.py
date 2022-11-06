@@ -55,18 +55,6 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
-class WeasylParser(ParserABC):
-    @staticmethod
-    @abstractmethod
-    def html_to_bbcode(html: str) -> str:
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def username_url(username: str) -> str:
-        return sub(r"[^a-z\d.~-]", "", username.lower())
-       
-
 def parse_submission_figure(figure_tag: Tag) -> dict[str, Any]:
     id_link_tag = figure_tag.a
 
