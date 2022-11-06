@@ -72,12 +72,6 @@ def username_url(username: str) -> str:
     return sub(r"[^a-z\d.~-]", "", username.lower())
 
 
-def inner_html(tag: Tag) -> str:
-    return tag.decode_contents()
-
-
-def clean_html(html: str) -> str:
-    return sub(r" *(<br/?>) *", r"\1", minify(html, remove_comments=True, reduce_boolean_attributes=True)).strip()
 
 
 def html_to_bbcode(html: str) -> str:

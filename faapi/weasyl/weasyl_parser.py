@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from re import Pattern
 from re import compile as re_compile
 from re import match
@@ -8,6 +8,7 @@ import re
 from typing import Any, Dict
 from typing import Optional
 from typing import NewType
+from dateutil.tz import tzutc
 
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
@@ -106,10 +107,10 @@ def parse_user_tag(user_tag: Tag) -> dict[str, Any]:
     user_info = user_id_tag.text.split("/")
     title = user_info[0]
     status = user_info[4] if len(user_info) >= 5 else ""
-    join_date: datetime = datetime.min
+    join_date: datetime = datetime.fromtimestamp(0, tz = tzutc())
 
     return {
-        "user_name": name,
+        "user_name": name.text.strip(),
         "user_status": status,
         "user_title": title,
         "user_join_date": join_date,

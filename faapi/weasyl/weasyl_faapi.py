@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import functools
 from http.cookiejar import CookieJar
 import re
@@ -10,6 +10,7 @@ from typing import Union
 from urllib.robotparser import RobotFileParser
 from bs4 import BeautifulSoup
 from dateutil.parser import parse as parse_date
+from dateutil.tz import tzutc
 
 from faapi.base import FAAPI_BASE
 
@@ -28,7 +29,7 @@ from ..user import User, UserStats
 from ..user import UserPartial
 from . import weasyl_parser
 
-from .weasyl_parser import parse_submission_figure, parse_user_favorites
+from .weasyl_parser import parse_submission_figure, parse_user_favorites, parse_user_folder
 
 def convertRating(rating: str) -> str:
     match rating:
@@ -38,6 +39,19 @@ def convertRating(rating: str) -> str:
             return "Mature"
         case "explicit":
             return "Explicit"
+
+def computeTypeFromExtension(extension: str, submitid: int) -> str:
+    match extension:
+        case "jpg" | "gif" | "png":
+            return "image"
+        case "swf":
+            return "flash"
+        case "txt" | "md" | "pdf":
+            return "text"
+        case "mp3":
+            return "music"
+    raise Exception(f"Unknown file extension {extension} on submission {submitid}")
+
 
 class WeasylFAAPI(FAAPI_BASE):
     """
@@ -120,15 +134,16 @@ class WeasylFAAPI(FAAPI_BASE):
         if type(frontpage_submissions) is not list:
             raise ParsingError("Unable to parse front page submissions")
 
+        # The front page can be a mix of submissions and characters. Characters have a different format and are not currently supported, so they get ignored.
         submissions: list[SubmissionPartial] = [
             SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(
                 id = f["submitid"],
                 title = f["title"],
                 author = f["owner"],
                 rating = convertRating(f["rating"]),
-                type = f["type"],
+                type = computeTypeFromExtension(f["media"]["submission"][0]["url"].split(".")[-1], f["submitid"]),
                 thumbnail_url = f["media"]["thumbnail"][0]["url"]))
-            for f in frontpage_submissions]
+            for f in frontpage_submissions if f["type"] == "submission"]
         return sorted({s for s in submissions}, reverse=True)
 
     def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
@@ -150,13 +165,13 @@ class WeasylFAAPI(FAAPI_BASE):
                 title = response["title"],
                 author = response["owner"],
                 rating = convertRating(response["rating"]),
-                type = response["type"],
+                type = computeTypeFromExtension(response["media"]["submission"][0]["url"].split(".")[-1], response["submitid"]),
                 thumbnail_url = response["media"]["thumbnail-generated"][0]["url"],
                 author_title = "",
                 author_icon_url = response["owner_media"]["avatar"][0]["url"],
                 date = parse_date(response["posted_at"]),
                 tags = response["tags"],
-                category = response["subtype"],
+                category = "",
                 species = "",
                 gender = "",
                 views = response["views"],
@@ -195,7 +210,7 @@ class WeasylFAAPI(FAAPI_BASE):
             user_name = response["owner"],
             user_title = "",
             user_status = "",
-            user_join_date = datetime.min,
+            user_join_date = datetime.fromtimestamp(0, tz = tzutc()),
             user_icon_url = response["owner_media"]["avatar"][0]["url"],
             comments = response["comments"],
             date = parse_date(response["posted_at"]),
@@ -273,14 +288,14 @@ class WeasylFAAPI(FAAPI_BASE):
             name = user,
             status = "",
             title = "",
-            join_date = datetime.min,
+            join_date = datetime.fromtimestamp(0, tz = tzutc()),
             user_icon_url = ""
         ))
         submissions = [SubmissionPartial(WeasylFAAPI, SubmissionPartial.Record(
             id = s["submitid"],
             title = s["title"],
             rating = convertRating(s["rating"]),
-            type = s["type"],
+            type = computeTypeFromExtension(s["media"]["submission"][0]["url"].split(".")[-1]),
             thumbnail_url = s["media"]["thumbnail"][0]["url"]
         )) for s in response["submissions"]]
         for s in submissions:
@@ -337,10 +352,28 @@ class WeasylFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of Journal objects and the next page (None if it is the last).
         """
-        # Thwe Weasyl API doesn't support examining a user's journals. We'll have to use traditional scraping here.
-        # URL for journals: https://www.weasyl.com/journals/{username}
-        # TODO: Support querying journals.
-        return ([], None, [])
+        page_parsed: BeautifulSoup = self.get_parsed(f"journals/{user}")
+        user_info = parse_user_folder(page_parsed)
+        assert user_info["user_name"] == user
+        journal_tags = page_parsed.select(".text-post-item")
+        header_tags = page_parsed.select(".text-post-group-header")
+
+        journals : List[JournalPartial] = []
+        for (header, journal) in zip(header_tags, journal_tags):
+            title_tag = journal.select_one(".text-post-title").a
+            assert title_tag is not None
+            excerpt_tag = journal.select_one(".text-post-excerpt")
+            assert excerpt_tag is not None
+            journals.append(JournalPartial(WeasylFAAPI, JournalPartial.Record(
+            id = int(title_tag.attrs["href"].split("/")[2]),
+            title = title_tag.text,
+            comments = 0,
+            date = parse_date(header.time.attrs["datetime"]),
+            content = excerpt_tag.text,
+            mentions = [],
+            **user_info)))
+        
+        return (journals, None, [])
         
     def watchlist_to(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
@@ -352,8 +385,14 @@ class WeasylFAAPI(FAAPI_BASE):
         """
         page_parsed: BeautifulSoup = self.get_parsed(f"followed/{user}")
         follower_tags = page_parsed.select(".grid-unit")
-        followers = [tag.a.attrs["title"] for tag in follower_tags]
-
+        followers = [UserPartial(WeasylFAAPI, UserPartial.Record(
+            name = tag.a.attrs["title"],
+            status = "",
+            title = "",
+            join_date = datetime.fromtimestamp(0, tz = tzutc()),
+            user_icon_url = tag.img.attrs["src"]
+        )) for tag in follower_tags]
+        
         next_page = None
         href_re = re.compile("/following\\?userid=.*&nextid=(.*)")
         def match_href(url: str):
@@ -373,7 +412,13 @@ class WeasylFAAPI(FAAPI_BASE):
         """
         page_parsed: BeautifulSoup = self.get_parsed(f"following/{user}")
         follower_tags = page_parsed.select(".grid-unit")
-        followers = [tag.a.attrs["title"] for tag in follower_tags]
+        followers = [UserPartial(WeasylFAAPI, UserPartial.Record(
+            name = tag.a.attrs["title"],
+            status = "",
+            title = "",
+            join_date = datetime.fromtimestamp(0, tz = tzutc()),
+            user_icon_url = tag.img.attrs["src"]
+        )) for tag in follower_tags]
 
         next_page = None
         href_re = re.compile("/following\\?userid=.*&nextid=(.*)")
