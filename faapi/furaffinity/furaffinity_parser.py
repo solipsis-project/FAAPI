@@ -28,6 +28,8 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
+from parse import clean_html, inner_html
+
 root = "https://furaffinity.net"
 
 relative_url: Pattern = re_compile(r"^(?:https?://(?:www\.)?furaffinity\.net)?(.*)")
