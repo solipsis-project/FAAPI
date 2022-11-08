@@ -121,7 +121,7 @@ class FAAPI_BASE(FAAPI_ABC):
     def check_page_raise(self, page: BeautifulSoup) -> None:
         ...
 
-    def submission_file(self, submission: Submission, *, chunk_size: int = None) -> bytes:
+    def submission_file(self, submission: Submission, *, chunk_size: Optional[int] = None) -> bytes:
         """
         Fetch a submission file from a Submission object.
 

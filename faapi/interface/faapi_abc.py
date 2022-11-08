@@ -132,7 +132,7 @@ class FAAPI_ABC(ABC):
         """
 
     @abstractmethod
-    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
+    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: Optional[int] = None
                    ) -> tuple[Submission, Optional[bytes]]:
         """
         Fetch a submission and, optionally, its file.
