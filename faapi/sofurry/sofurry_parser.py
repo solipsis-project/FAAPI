@@ -45,7 +45,7 @@ def getOnlyElementOrNone(l):
         assert False
     return l[0]
 
-def parse_submission_author(author_tag: Tag) -> dict[str, Any]:
+def parse_user(author_tag: Tag) -> dict[str, Any]:
 
     tag_author_name: Optional[Tag] = author_tag.select_one("span.sf-username")
     tag_author_icon: Optional[Tag] = author_tag.select_one("img")
@@ -58,9 +58,25 @@ def parse_submission_author(author_tag: Tag) -> dict[str, Any]:
     author_icon_url: str = tag_author_icon.attrs["src"]
 
     return {
-        "author": author_name,
-        "author_icon_url": author_icon_url,
+        "user": author_name,
+        "user_icon_url": author_icon_url,
     }
+
+def getStats(page: BeautifulSoup):
+    statsHeader = page.find(class_="section-title", string="Stats")
+    assert isinstance(statsHeader, Tag), _raise_exception(ParsingError("Missing Stats Header"))
+
+    statsContent = statsHeader.find_next_sibling(class_="section-content")
+    assert isinstance(statsContent, Tag), _raise_exception(ParsingError("Missing Stats Content"))
+    stats = list(statsContent.strings)
+
+    def parseStats(regexp: str, match_group = 1) -> str:
+        reMatch = next(re.search(regexp, stat) for stat in stats)
+        assert reMatch is not None, _raise_exception(ParsingError(f"Missing Stat {regexp}"))
+        return reMatch[match_group]
+    
+    return parseStats
+
 
 def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     # Rating is not viewable from a submission page itself.
@@ -99,19 +115,8 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     seriesTitleTag = sub_page.select_one(".section-title-highlight")
     seriesTitle = seriesTitleTag and seriesTitleTag.string
     
-    statsHeader = sub_page.find(class_="section-title", string="Stats")
-    assert isinstance(statsHeader, Tag), _raise_exception(ParsingError("Missing Stats Header"))
+    parseStats = getStats(sub_page)
 
-    statsContent = statsHeader.find_next_sibling(class_="section-content")
-    assert isinstance(statsContent, Tag), _raise_exception(ParsingError("Missing Stats Content"))
-
-    stats = list(statsContent.strings)
-
-    def parseStats(regexp: str, match_group = 1) -> str:
-        reMatch = next(re.search(regexp, stat) for stat in stats)
-        assert reMatch is not None, _raise_exception(ParsingError(f"Missing Stat {regexp}"))
-        return reMatch[match_group]
-            
     publishTimeStr = parseStats("Posted (.*)")
     # For some unkown reason, some pages add an extra space to these fields.
     #publishTimeStr = getOnlyElementOrNone([stat[8:] for stat in stats if stat[:8] == "\nPosted "])
@@ -152,7 +157,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     return {
         "id": submitId,
         "title": title,
-        **parse_submission_author(authorTag),
+        **parse_user(authorTag),
         "date": publishTime,
         "tags": tags,
         "views": views,
@@ -170,6 +175,42 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
         "next": None,
         "fav_link": faveLink,
         "unfav_link": unfaveLink,
+    }
+
+
+def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
+    tag_id: Optional[Tag] = journal_page.select_one("meta[name='og:image']")
+    tag_title: Optional[Tag] = journal_page.select_one("#sfContentTitle")
+    tag_content: Optional[Tag] = journal_page.select_one("#sfContentBody")
+
+    assert tag_id is not None, _raise_exception(ParsingError("Missing ID tag"))
+    assert tag_title is not None, _raise_exception(ParsingError("Missing title tag"))
+    assert tag_content is not None, _raise_exception(ParsingError("Missing content tag"))
+
+    id_match = re.match("https://www.sofurryfiles.com/std/thumb?page=(.*?)&ext=.*", tag_id.attrs["content"]):
+    assert id_match is not None, _raise_exception(ParsingError("Missing link tag"))
+    id_ = int(id_match[1])
+    
+    # noinspection DuplicatedCode
+    title: str = tag_title.text.strip()
+
+    parseStats = getStats(journal_page)
+
+    publishTimeStr = parseStats("Posted (.*)")
+    publishTime: datetime = parse_date(publishTimeStr)
+    
+    content: str = clean_html(inner_html(tag_content))
+    commentCount = int(parseStats("\\d+ comments"))
+
+    assert id_ != 0, _raise_exception(ParsingError("Missing ID"))
+
+    return {
+        **parse_user(journal_page),
+        "id": id_,
+        "title": title,
+        "date": publishTime,
+        "content": content,
+        "comments": commentCount,
     }
 
 def parse_comments(page: BeautifulSoup) -> list[Tag]:
