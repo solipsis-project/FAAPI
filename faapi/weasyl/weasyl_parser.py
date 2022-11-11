@@ -123,13 +123,16 @@ def parse_submission_figures(figures_page: BeautifulSoup) -> list[Tag]:
 
 def parse_user_favorites(favorites_page: BeautifulSoup) -> dict[str, Any]:
     user_info: dict[str, str] = parse_user_folder(favorites_page)
-    next_page: str = None
+    next_page: Optional[str] = None
     href_re = re.compile("/favorites\\?userid=.*&feature=submit&nextid=(.*)")
     def match_href(url: str):
         match = href_re.match(url)
         if match:
             nonlocal next_page
             next_page = match[1]
+            return True
+        return False
+
     favorites_page.find("a", href=match_href)
 
     return {
