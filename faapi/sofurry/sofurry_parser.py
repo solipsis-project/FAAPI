@@ -7,7 +7,7 @@ from re import match
 from re import search
 from re import sub
 import re
-from typing import Any
+from typing import Any, TypeVar
 from typing import Optional
 from typing import Union
 
@@ -31,6 +31,8 @@ from ..exceptions import _raise_exception
 
 from parse import clean_html, inner_html
 
+T = TypeVar('T') 
+
 root = "https://sofurry.com"
 
 def getOnlyElement(l):
@@ -45,7 +47,11 @@ def getOnlyElementOrNone(l):
         assert False
     return l[0]
 
-def parse_user(author_tag: Tag) -> dict[str, Any]:
+def get(e: Optional[T], message: str) -> T:
+    assert e is not None, _raise_exception(ParsingError(f"Missing {message}"))
+    return e
+
+def parse_user_small(author_tag: Tag) -> dict[str, Any]:
 
     tag_author_name: Optional[Tag] = author_tag.select_one("span.sf-username")
     tag_author_icon: Optional[Tag] = author_tag.select_one("img")
@@ -157,7 +163,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     return {
         "id": submitId,
         "title": title,
-        **parse_user(authorTag),
+        **parse_user_small(authorTag),
         "date": publishTime,
         "tags": tags,
         "views": views,
@@ -205,7 +211,7 @@ def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
     assert id_ != 0, _raise_exception(ParsingError("Missing ID"))
 
     return {
-        **parse_user(journal_page),
+        **parse_user_small(journal_page),
         "id": id_,
         "title": title,
         "date": publishTime,
@@ -251,4 +257,166 @@ def parse_comment_tag(tag: Tag) -> dict:
         "user_icon_url": attr_user_icon,
         "text": comment_text,
         "parent": parent_id,
+    }
+
+"""
+Watchers could be queried with code like        
+watchers_url = f"https://{user}.sofurry.com/watchers"
+while True:
+    watchers_soup = self.get_parsed(watchers_url)
+    next_watchers = parse_watchlist_page(watchers_soup)
+    watchers.extend(next_watchers["users"])
+    if next_watchers["next"] is None:
+        break
+    watchers_url = next_watchers["next"]
+
+watching_url = f"https://{user}.sofurry.com/watching"
+while True:
+    watching_soup = self.get_parsed(watching_url)
+    next_watching = parse_watchlist_page(watching_soup)
+    watching.extend(next_watching["users"])
+    if next_watching["next"] is None:
+        break
+    watching_url = next_watching["next"]
+"""
+def parse_watchlist_page(page: BeautifulSoup) -> dict[str, Any]:
+    user_tags = page.select("span.sf-item-h-info-content")
+    users = []
+    for user_tag in user_tags:
+        user_name = getOnlyElement(user_tag.stripped_strings)
+        user_icon_tag = get(user_tag.select_one("img"), "User Image")
+        user_icon_url = user_icon_tag.attrs["href"]
+        users.append({
+            "user_name": user_name,
+            "user_icon_url": user_icon_url
+        })
+    next_page_tag = page.select_one("li.next")
+    next_page = next_page_link.attrs["href"] if next_page_tag and (next_page_link := next_page_tag.a) else None
+
+    return {
+        "users": users,
+        "next_page": next_page
+    }
+
+def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
+
+    tag_profile: Optional[Tag] = user_page.select_one("#sf-section-1 sftc-content span span span")
+    tag_stats: Optional[Tag] = user_page.select_one('[style="display: table; white-space: nowrap; font-size: smaller;"]')
+    tag_contacts: Optional[Tag] = user_page.select_one("#sf-accounts")
+    
+    tag_stats: Optional[Tag] = user_page.select_one("div.userpage-section-right div.table")
+    
+    tag_user_nav_controls: Optional[Tag] = user_page.select_one("div.user-nav-controls")
+
+    
+
+    assert tag_stats is not None, _raise_exception(ParsingError("Missing stats tag"))
+    assert tag_profile is not None, _raise_exception(ParsingError("Missing profile tag"))
+    assert tag_stats is not None, _raise_exception(ParsingError("Missing stats tag"))
+    assert tag_user_nav_controls is not None, _raise_exception(ParsingError("Missing user nav controls tag"))
+
+    tag_watch: Optional[Tag] = tag_user_nav_controls.select_one("form[action^='/watch'], a[form[action^='/unwatch']")
+    tag_block: Optional[Tag] = tag_user_nav_controls.select_one("form[action^='/block'], a[form[action^='/unblock']")
+
+
+    profile: str = clean_html(inner_html(tag_profile))
+    
+    stats_scraped: dict[str, str] = {}
+    info: dict[str, str] = {}
+
+    for stat_row_tag in tag_stats.findChildren():
+        category_tag = stat_row_tag.findChildren(class_ = "sfTextMedLight")
+        left_cell, right_cell = stat_row_tag.findChildren()
+        if category_tag == left_cell:
+            info[left_cell.text.strip()] = right_cell.text.strip()
+        else: 
+            stats_scraped[right_cell.text.strip()] = left_cell.text.strip() 
+
+    stats = UserStats(
+            views = stats_scraped["page views"]
+            submissions = stats_scraped["submissions"]
+            comments_earned = stats_scrapped["comments received"]
+            comments_made = stats_scrapped["comments posted"]
+    )
+
+    tag_key: Optional[Tag]
+    
+    contacts: dict[str, str] = {}
+    if tag_contacts:
+        for contact in tag_contacts.find_all(href=True):
+            contacts[contact.text.strip()] = contact.attrs["href"]
+
+    
+    tag_watch_href: str = ("https://" + tag_watch.attrs["action"]) if tag_watch else ""
+    watch: Optional[str] = f"{root}{tag_watch_href}" if tag_watch_href.endswith("/watch") else None
+    unwatch: Optional[str] = f"{root}{tag_watch_href}" if tag_watch_href.endswith("/unwatch") else None
+    tag_block_href: str = ("https://" + tag_block.attrs["action"]) if tag_block else ""
+    block: Optional[str] = f"{root}{tag_block_href}" if tag_block_href.endswith("/block") else None
+    unblock: Optional[str] = f"{root}{tag_block_href}" if tag_block_href.endswith("/unblock") else None
+
+    return {
+        **parse_user_big(user_page),
+        "profile": profile,
+        "stats": stats,
+        "info": info,
+        "contacts": contacts,
+        "watch": watch,
+        "unwatch": unwatch,
+        "block": block,
+        "unblock": unblock,
+    }
+
+def parse_user_big(user_tag: Tag) -> dict[str, Any]:
+
+    tag_username: Optional[Tag] = user_tag.select_one(".user-text")
+    tag_title: Optional[Tag] = user_tag.select_one(".user .sfTextMedLight")
+    tag_title_join_date: Optional[Tag] = user_tag.select_one("span.user-stats strong")
+    tag_user_icon_url: Optional[Tag] = user_tag.select_one(".user-info")
+    
+    assert tag_username is not None, _raise_exception(ParsingError("Missing name tag"))
+    assert tag_title is not None, _raise_exception(ParsingError("Missing title tag"))
+    assert tag_title_join_date is not None, _raise_exception(ParsingError("Missing join date tag"))
+    assert tag_user_icon_url is not None, _raise_exception(ParsingError("Missing user icon URL tag"))
+
+    user_icon_img_tag: Optional[Tag] = tag_user_icon_url.img
+    assert user_icon_img_tag is not None, _raise_exception(ParsingError("Missing user icon tag"))
+    user_icon_url = user_icon_img_tag.attrs["src"]
+
+    name: str = tag_username.text.strip()
+    title: str = tag_title.text.strip()
+    join_date: datetime = parse_date(tag_title_join_date.text.strip())
+    
+
+    return {
+        "user_name": name,
+        "user_title": title,
+        "user_join_date": join_date,
+        "user_icon_url": user_icon_url
+    }
+
+
+def parse_submission_figures(figures_page: BeautifulSoup) -> list[Tag]:
+    return figures_page.select(".sfArtworkSmallInner")
+
+def parse_subfolder(subfolder: Tag) -> dict[str, Any]:
+    tag_a = get(subfolder.a, "subfolder link")
+    return {
+        "name": tag_a.attrs["title"].strip(),
+        "url": tag_a.attrs["href"].strip()
+    }
+
+def parse_subfolders(page: BeautifulSoup) -> dict[str, Any]:
+    subfolders = page.select(".sfArtworkSmallWrapper")
+    return {
+        "subfolders": [parse_subfolder(subfolder) for subfolder in subfolders]
+    }
+
+def parse_user_submissions(submissions_page: BeautifulSoup) -> dict[str, Any]:
+    last_page = not any(submissions_page.select(".next"))
+
+    return {
+        **parse_user_big(submissions_page),
+        **parse_subfolders(submissions_page),
+        "figures": parse_submission_figures(submissions_page),
+        "last_page": last_page,
     }

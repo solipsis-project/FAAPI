@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from enum import Enum
 from http.cookiejar import CookieJar
 from time import sleep
 from time import time
@@ -21,7 +23,7 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page
+from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page, parse_watchlist_page
 from .sofurry_parser import check_page_raise
 from .sofurry_parser import parse_loggedin_user
 from .sofurry_parser import parse_submission_figures
@@ -147,15 +149,35 @@ class SoFurryFAAPI(FAAPI_BASE):
         return User(SoFurryFAAPI, User.Record(**parsed_user))
 
     # noinspection DuplicatedCode
-    def gallery(self, user: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+    def gallery(self, user: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's gallery page.
+
+        SoFurry has separate urls for each submission type:
+        - Stories
+        - Artwork
+        - Photos
+        - Music
+        - Journals
+        - Characters
+
+        In addition, submissions that are in a folder won't show up on
+        the main results page, so we need to return sub-urls.
+
+        The page parameter here is a url. We could try to break it down into its components, by why would we?
+        We'd just use them to reconstitute the url on a subsequent call.
 
         :param user: The name of the user (_ characters are allowed).
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("gallery", username_url(user), int(page)))
+        if page is None:
+            # Return as subfolders the different submission types
+            sub_folders = [ f"https://{user}.sofurry.com/{submission_type}" for submission_type in ["stories", "artwork", "photos", "music"]]
+
+            return ([], None, sub_folders)
+
+        page_parsed: BeautifulSoup = self.get_parsed(page)
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(SoFurryFAAPI)
         author.name, author.status, author.title, author.join_date, author.user_icon_url = [
@@ -166,7 +188,12 @@ class SoFurryFAAPI(FAAPI_BASE):
         submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         for s in submissions:
             s.author = author
-        return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
+
+        # Every results page will contain the subfolders, but we want to make sure that we only parse each subfolder once, on the first page
+        # of each category.
+        
+        sub_folders = info_parsed["sub_folders"] if info_parsed["first_page"] else []
+        return (submissions, info_parsed["next_page"], sub_folders)
 
     # noinspection DuplicatedCode
     def scraps(self, user: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
@@ -177,18 +204,9 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("scraps", username_url(user), int(page)))
-        info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
-        author: UserPartial = UserPartial(SoFurryFAAPI)
-        author.name, author.status, author.title, author.join_date, author.user_icon_url = [
-            info_parsed["user_name"], info_parsed["user_status"],
-            info_parsed["user_title"], info_parsed["user_join_date"],
-            info_parsed["user_icon_url"]
-        ]
-        submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
-        for s in submissions:
-            s.author = author
-        return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
+        # SoFurry doesn't have scraps
+        return ([], None, [])
+
 
     def favorites(self, user: str, page: Any = "") -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
