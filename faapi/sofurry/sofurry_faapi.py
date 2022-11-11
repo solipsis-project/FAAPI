@@ -244,7 +244,7 @@ class SoFurryFAAPI(FAAPI_BASE):
             j.author = author
         return (journals, (page + 1) if not info_parsed["last_page"] else None, [])
 
-    def watchlist_to(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
+    def watchlist_to(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
         Fetch a page from the list of users watching the user.
 
@@ -252,15 +252,17 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
+        watchers_url = page or f"https://{user}.sofurry.com/watchers"
+        watchers_soup = self.get_parsed(watchers_url)
+        watchers = parse_watchlist_page(watchers_soup)
+           
         users: list[UserPartial] = []
-        us, np = parse_watchlist(
-            self.get_parsed(join_url("watchlist", "to", username_url(user), page), skip_auth_check=True))
-        for s, u in us:
+        for user in watchers:
             _user: UserPartial = UserPartial(SoFurryFAAPI)
-            _user.name = u
-            _user.status = s
+            _user.name = user["user_name"]
+            _user.user_icon_url = user["user_icon_url"]
             users.append(_user)
-        return (users, np if np and np != page else None, [])
+        return (users, watchers["next"], [])
 
     def watchlist_by(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
@@ -269,15 +271,17 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
+        watchers_url = page or f"https://{user}.sofurry.com/watching"
+        watchers_soup = self.get_parsed(page)
+        watchers = parse_watchlist_page(watchers_soup)
+           
         users: list[UserPartial] = []
-        us, np = parse_watchlist(
-            self.get_parsed(join_url("watchlist", "by", username_url(user), page), skip_auth_check=True))
-        for s, u in us:
+        for user in watchers:
             _user: UserPartial = UserPartial(SoFurryFAAPI)
-            _user.name = u
-            _user.status = s
+            _user.name = user["user_name"]
+            _user.user_icon_url = user["user_icon_url"]
             users.append(_user)
-        return (users, np if np and np != page else None, [])
+        return (users, watchers["next"], [])
 
     def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
         return parse_loggedin_user(page)

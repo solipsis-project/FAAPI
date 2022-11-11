@@ -124,17 +124,12 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     parseStats = getStats(sub_page)
 
     publishTimeStr = parseStats("Posted (.*)")
-    # For some unkown reason, some pages add an extra space to these fields.
-    #publishTimeStr = getOnlyElementOrNone([stat[8:] for stat in stats if stat[:8] == "\nPosted "])
-    #publishTimeStr = publishTimeStr or getOnlyElement([stat[9:] for stat in stats if stat[:9] == "\n Posted "])
 
     publishTime: datetime = parse_date(publishTimeStr)
 
     views = int(parseStats("\\d+ views"))
     faves = int(parseStats("\\d+ faves"))
     commentCount = int(parseStats("\\d+ comments"))
-
-    # viewsStr = getOnlyElementOrNone([stat[13:] for stat in stats if stat[:13] == "\nLast Edited "])
     
     seriesId = None
     seriesIdRe = re.compile("/browse/folder/stories?by=(.*?)&folder=(.*?)")
@@ -259,26 +254,6 @@ def parse_comment_tag(tag: Tag) -> dict:
         "parent": parent_id,
     }
 
-"""
-Watchers could be queried with code like        
-watchers_url = f"https://{user}.sofurry.com/watchers"
-while True:
-    watchers_soup = self.get_parsed(watchers_url)
-    next_watchers = parse_watchlist_page(watchers_soup)
-    watchers.extend(next_watchers["users"])
-    if next_watchers["next"] is None:
-        break
-    watchers_url = next_watchers["next"]
-
-watching_url = f"https://{user}.sofurry.com/watching"
-while True:
-    watching_soup = self.get_parsed(watching_url)
-    next_watching = parse_watchlist_page(watching_soup)
-    watching.extend(next_watching["users"])
-    if next_watching["next"] is None:
-        break
-    watching_url = next_watching["next"]
-"""
 def parse_watchlist_page(page: BeautifulSoup) -> dict[str, Any]:
     user_tags = page.select("span.sf-item-h-info-content")
     users = []
