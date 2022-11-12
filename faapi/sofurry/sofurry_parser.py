@@ -80,7 +80,7 @@ def parse_loggedin_user(page: BeautifulSoup) -> Optional[str]:
     return find(page, {"href" : "https://(?P<username>.*?)\\.sofurry\\.com/"}, "a")["username"]
 
 def username_url(username: str) -> str:
-    return sub(r"[^a-z\d.~-]", "", username.lower())
+    return sub(r"[^a-z\d.~`-]", "", username.lower())
 
 def parse_user_small(author_tag: Tag) -> dict[str, Any]:
 
@@ -105,10 +105,10 @@ def getStats(page: BeautifulSoup):
 
     statsContent = statsHeader.find_next_sibling(class_="section-content")
     assert isinstance(statsContent, Tag), _raise_exception(ParsingError("Missing Stats Content"))
-    stats = list(statsContent.strings)
-
+    stats = list(s.strip() for s in statsContent.strings)
+    print(stats)
     def parseStats(regexp: str, match_group = 1) -> str:
-        reMatch = next(re.search(regexp, stat) for stat in stats)
+        reMatch = next(filter(None, (re.search(regexp, stat) for stat in stats)))
         assert reMatch is not None, _raise_exception(ParsingError(f"Missing Stat {regexp}"))
         return reMatch[match_group]
     
@@ -121,7 +121,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
 
     idTag = sub_page.select_one('#sfPageId')
     assert idTag is not None, _raise_exception(ParsingError("Missing ID"))
-    submitId = idTag.string
+    submitId = int(idTag.string.strip())
     
     imageTag = sub_page.select_one("[itemprop=image]")
     assert imageTag is not None
@@ -145,7 +145,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     assert artistDisplayNameTag is not None, _raise_exception(ParsingError("Missing Artist Display Name"))
     artistDisplayName = artistDisplayNameTag.string
 
-    artistUserNameTag = sub_page.select_one(".sf-userinfo-outer")
+    artistUserNameTag = sub_page.select_one("#sf-userinfo-outer")
     assert artistUserNameTag is not None, _raise_exception(ParsingError("Missing Artist User Name"))
     artistUserName = artistUserNameTag.attrs["href"][8:-13]
 
@@ -158,21 +158,11 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
 
     publishTime: datetime = parse_date(publishTimeStr)
 
-    views = int(parseStats("\\d+ views"))
-    faves = int(parseStats("\\d+ faves"))
-    commentCount = int(parseStats("\\d+ comments"))
-    
-    seriesId = None
-    seriesIdRe = re.compile("/browse/folder/stories?by=(.*?)&folder=(.*?)")
-    def matchSeriesId(url: str) -> bool:
-        match = seriesIdRe.match(url)
-        if match:
-            nonlocal seriesId
-            seriesId = match[2]
-            return True
-        return False
+    views = int(parseStats("(\\d+) views?"))
+    faves = int(parseStats("(\\d+) faves?"))
+    commentCount = int(parseStats("(\\d+) comments?"))
 
-    sub_page.find("a", href=matchSeriesId)
+    folderId = find(sub_page, {"href": "/browse/folder/stories\\?by=(?P<uid>.*?)&folder=(?P<folderid>.*?)"}).get("folderid", None)
 
     descriptionTag = sub_page.select_one("#sfContentBody" if isImage else "#sfContentDescription")
     
@@ -186,20 +176,28 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     faveButtonTag = None if unfaveButtonTag else sub_page.select_one("#sfFavorite_outer")
     faveLink = faveButtonTag.get("href") if faveButtonTag else None
 
+    parsed_user = parse_user_small(authorTag)
+
+    category =  "music" if sub_page.select_one("#sfContentMusic") is not None else\
+                "image" if isImage else\
+                "story"
+
     return {
         "id": submitId,
         "title": title,
-        **parse_user_small(authorTag),
+        "author": parsed_user["user"],
+        "author_icon_url": parsed_user["user_icon_url"],
         "date": publishTime,
         "tags": tags,
         "views": views,
+        "category": category,
         "comment_count": commentCount,
         "favorites": faves,
-        "type": "submission",
+        "type": category,
         "footer": "",
         "description": description,
         "mentions": [],
-        "folder": seriesId,
+        "folder": folderId,
         "user_folders": [],
         "file_url": file_url,
         "thumbnail_url": imageSrc,

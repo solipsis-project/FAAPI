@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from http.cookiejar import CookieJar
 from time import sleep
@@ -107,8 +108,18 @@ class SoFurryFAAPI(FAAPI_BASE):
         unfav_link = parsed_submission.pop('unfav_link')
         parsed_submission['favorite_toggle_link'] = fav_link or unfav_link
         parsed_submission['favorite'] = unfav_link is not None
-        sub: Submission = Submission(SoFurryFAAPI, Submission.Record(**parsed_submission))
-        comments = [Comment(SoFurryFAAPI, Comment.Record(**parse_comment_tag(t)), sub) for t in parse_comments(beautiful_soup)]
+        sub: Submission = Submission(SoFurryFAAPI, Submission.Record(
+            rating = None,
+            author_title = "",
+            species = "",
+            gender = "",
+            **parsed_submission))
+        comments = [Comment(SoFurryFAAPI, Comment.Record(
+            timestamp = datetime.fromtimestamp(0),
+            user_title = "",
+            edited = False,
+            hidden = False,
+            **parse_comment_tag(t)), sub) for t in parse_comments(beautiful_soup)]
         sub.comments = sort_comments(comments)
         sub_file: Optional[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else None
         return sub, sub_file
@@ -262,7 +273,7 @@ class SoFurryFAAPI(FAAPI_BASE):
             users.append(_user)
         return (users, watchers["next"], [])
 
-    def watchlist_by(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
+    def watchlist_by(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
         Fetch a page from the list of users watched by the user.
         :param user: The name of the user (_ characters are allowed).
@@ -270,7 +281,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
         watchers_url = page or f"https://{user}.sofurry.com/watching"
-        watchers_soup = self.get_parsed(page)
+        watchers_soup = self.get_parsed(watchers_url)
         watchers = parse_watchlist_page(watchers_soup)
            
         users: list[UserPartial] = []
