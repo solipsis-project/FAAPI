@@ -15,8 +15,6 @@ from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 
-from faapi.interface.parser_abc import ParserABC
-
 from ..exceptions import DisabledAccount, Unauthorized
 from ..exceptions import NoTitle
 from ..exceptions import NonePage

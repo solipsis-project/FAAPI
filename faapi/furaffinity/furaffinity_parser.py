@@ -17,7 +17,7 @@ from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 from htmlmin import minify # type:ignore
 
-from faapi.parse import parse_html_page  
+from faapi.parse import parse_html_page, clean_html, inner_html
 
 from ..exceptions import DisabledAccount
 from ..exceptions import NoTitle
@@ -27,8 +27,6 @@ from ..exceptions import NoticeMessage
 from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
-
-from parse import clean_html, inner_html
 
 root = "https://furaffinity.net"
 
