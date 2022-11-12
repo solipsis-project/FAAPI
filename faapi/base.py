@@ -79,7 +79,7 @@ class FAAPI_BASE(FAAPI_ABC):
         except ConnectionError:
             return False
 
-    def get(self, path: str, **params: Union[str, bytes, int, float]) -> Response:
+    def get(self, path: str, root: Optional[str] = None, **params: Union[str, bytes, int, float]) -> Response:
         """
         Fetch a path with a GET request.
         The path is checked against the robots.txt before the request is made.
@@ -91,9 +91,9 @@ class FAAPI_BASE(FAAPI_ABC):
         """
         self.check_path(path, raise_for_disallowed=True)
         self.handle_delay()
-        return get(self.session, self.root(), path, timeout=self.timeout, params=params)
+        return get(self.session, root if root else self.root(), path, timeout=self.timeout, params=params)
 
-    def get_parsed(self, path: str, *, skip_page_check: bool = False, skip_auth_check: bool = False,
+    def get_parsed(self, path: str, *, root: Optional[str] = None, skip_page_check: bool = False, skip_auth_check: bool = False,
                    **params: Union[str, bytes, int, float]) -> BeautifulSoup:
         """
         Fetch a path with a GET request and parse it using BeautifulSoup.
@@ -104,7 +104,7 @@ class FAAPI_BASE(FAAPI_ABC):
         :param params: Query parameters for the request.
         :return: A BeautifulSoup object containing the parsed content of the request response.
         """
-        response: Response = self.get(path, **params)
+        response: Response = self.get(path, root = root, **params)
         response.raise_for_status()
         page: BeautifulSoup = parse_html_page(response.text)
         if not skip_page_check:
