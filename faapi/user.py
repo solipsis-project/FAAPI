@@ -2,6 +2,7 @@ from collections import namedtuple
 from dataclasses import KW_ONLY, dataclass
 from datetime import datetime
 from typing import Optional, Type
+from urllib.parse import quote
 
 from faapi.interface.faapi_abc import FAAPI_ABC
 
@@ -100,7 +101,7 @@ class UserBase:
 
         :return: The URL to the user.
         """
-        return join_url(self.parserClass.root(), "user", self.name_url)
+        return join_url(self.parserClass.root(), "user", quote(self.name_url))
 
     def generate_user_icon_url(self) -> str:
         """

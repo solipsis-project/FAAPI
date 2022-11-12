@@ -4,6 +4,7 @@ from time import time
 from typing import Any
 from typing import Optional
 from typing import Union
+from urllib.parse import quote
 from urllib.robotparser import RobotFileParser
 
 from faapi.base import FAAPI_BASE
@@ -134,7 +135,7 @@ class FAAPI(FAAPI_BASE):
         :param user: The name of the user (_ characters are allowed).
         :return: A User object.
         """
-        beautifulSoup = self.get_parsed(join_url("user", username_url(user)))
+        beautifulSoup = self.get_parsed(join_url("user", quote(username_url(user))))
         parsed_user = parse_user_page(beautifulSoup)
         watch = parsed_user.pop("watch")
         unwatch = parsed_user.pop("unwatch")
@@ -155,7 +156,7 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("gallery", username_url(user), int(page)))
+        page_parsed: BeautifulSoup = self.get_parsed(join_url("gallery", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
         author.name, author.status, author.title, author.join_date, author.user_icon_url = [
@@ -177,7 +178,7 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("scraps", username_url(user), int(page)))
+        page_parsed: BeautifulSoup = self.get_parsed(join_url("scraps", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
         author.name, author.status, author.title, author.join_date, author.user_icon_url = [
@@ -198,7 +199,7 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", username_url(user), page.strip()))
+        page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", quote(username_url(user)), page.strip()))
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         return (submissions, info_parsed["next_page"] or None, [])
@@ -211,7 +212,7 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of Journal objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("journals", username_url(user), int(page)))
+        page_parsed: BeautifulSoup = self.get_parsed(join_url("journals", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_journals(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
         author.name, author.status, author.title, author.join_date, author.user_icon_url = [
@@ -236,7 +237,7 @@ class FAAPI(FAAPI_BASE):
         """
         users: list[UserPartial] = []
         us, np = parse_watchlist(
-            self.get_parsed(join_url("watchlist", "to", username_url(user), page), skip_auth_check=True))
+            self.get_parsed(join_url("watchlist", "to", quote(username_url(user)), page), skip_auth_check=True))
         for s, u in us:
             _user: UserPartial = UserPartial(FAAPI)
             _user.name = u
@@ -253,7 +254,7 @@ class FAAPI(FAAPI_BASE):
         """
         users: list[UserPartial] = []
         us, np = parse_watchlist(
-            self.get_parsed(join_url("watchlist", "by", username_url(user), page), skip_auth_check=True))
+            self.get_parsed(join_url("watchlist", "by", quote(username_url(user)), page), skip_auth_check=True))
         for s, u in us:
             _user: UserPartial = UserPartial(FAAPI)
             _user.name = u

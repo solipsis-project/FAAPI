@@ -4,6 +4,10 @@ from requests import Response
 from time import sleep
 from time import time
 from typing import Optional, Union
+from typing import Any
+from typing import Optional
+from typing import Union
+from urllib.parse import quote
 from urllib.robotparser import RobotFileParser
 
 

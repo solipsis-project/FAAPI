@@ -1,3 +1,5 @@
+from os.path import split
+from urllib.parse import unquote
 from datetime import datetime
 from re import MULTILINE
 from re import Match
@@ -16,6 +18,7 @@ from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 from htmlmin import minify # type:ignore
+from urllib3.util import parse_url
 
 from faapi.parse import parse_html_page, clean_html, inner_html
 
@@ -32,6 +35,7 @@ root = "https://furaffinity.net"
 
 relative_url: Pattern = re_compile(r"^(?:https?://(?:www\.)?furaffinity\.net)?(.*)")
 mentions_regexp: Pattern = re_compile(r"^(?:(?:https?://)?(?:www\.)?furaffinity\.net)?/user/([^/#]+).*$")
+url_username_regexp: Pattern = re_compile(r"/(?:user|gallery|scraps|favorites|journals|commissions)/([^/]+)(/.*)?")
 watchlist_next_regexp: Pattern = re_compile(r"/watchlist/(?:by|to)/[^/]+/(\d+)")
 not_found_messages: tuple[str, ...] = ("not in our database", "cannot be found", "could not be found", "user not found")
 deactivated_messages: tuple[str, ...] = ("deactivated", "pending deletion")
@@ -69,7 +73,7 @@ def check_page_raise(page: BeautifulSoup) -> None:
 
 
 def username_url(username: str) -> str:
-    return sub(r"[^a-z\d.~-]", "", username.lower())
+    return sub(r"[^a-z\d.~`-]", "", username.lower())
 
 
 
@@ -318,6 +322,10 @@ def bbcode_to_html(bbcode: str) -> str:
 
     result_page: BeautifulSoup = parse_extra(parse_html_page(parser.format(bbcode)))
     return (result_page.select_one("html > body") or result_page).decode_contents()
+
+
+def parse_username_from_url(url: str) -> Optional[str]:
+    return m[1] if (m := url_username_regexp.match(parse_url(url).path or "")) else None
 
 
 def parse_mentions(tag: Tag) -> list[str]:
@@ -598,6 +606,7 @@ def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
     tag_contacts: list[Tag] = user_page.select("div#userpage-contact div.user-contact-user-info")
     tag_user_icon_url: Optional[Tag] = user_page.select_one("img.user-nav-avatar")
     tag_user_nav_controls: Optional[Tag] = user_page.select_one("div.user-nav-controls")
+    tag_meta_url: Optional[Tag] = user_page.select_one('meta[property="og:url"]')
 
     assert tag_status is not None, _raise_exception(ParsingError("Missing name tag"))
     assert tag_profile is not None, _raise_exception(ParsingError("Missing profile tag"))
@@ -607,12 +616,15 @@ def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
     assert tag_watchlist_by is not None, _raise_exception(ParsingError("Missing watchlist by tag"))
     assert tag_user_icon_url is not None, _raise_exception(ParsingError("Missing user icon URL tag"))
     assert tag_user_nav_controls is not None, _raise_exception(ParsingError("Missing user nav controls tag"))
+    assert tag_meta_url is not None, _raise_exception(ParsingError("Missing meta tag"))
 
     tag_watch: Optional[Tag] = tag_user_nav_controls.select_one("a[href^='/watch/'], a[href^='/unwatch/']")
     tag_block: Optional[Tag] = tag_user_nav_controls.select_one("a[href^='/block/'], a[href^='/unblock/']")
 
-    status: str = (u := tag_status.text.strip())[0]
-    name: str = u[1:]
+    status: str = ""
+    name: str = tag_status.text.strip()
+    if username_url(name) != username_url(parse_username_from_url(get_attr(tag_meta_url, "content")) or ""):
+        status, name = name[0], name[1:]
     title: str = ttd[0].strip() if len(ttd := tag_title_join_date.text.rsplit("|", 1)) > 1 else ""
     join_date: datetime = parse_date(ttd[-1].strip().split(":", 1)[1])
     profile: str = clean_html(inner_html(tag_profile))
@@ -726,10 +738,25 @@ def parse_comments(page: BeautifulSoup) -> list[Tag]:
 
 
 def parse_user_tag(user_tag: Tag) -> dict[str, Any]:
-    status: str = (u := [*filter(bool, map(str.strip, user_tag.text.split("\n")))])[0][0]
-    name: str = u[0][1:]
-    title: str = ttd[0].strip() if len(ttd := u[1].rsplit("|", 1)) > 1 else ""
-    join_date: datetime = parse_date(ttd[-1].strip().split(":", 1)[1])
+    tag_status: Optional[Tag] = user_tag.select_one("h2")
+    tag_title: Optional[Tag] = user_tag.select_one("span")
+
+    assert tag_status, _raise_exception(ParsingError("Missing status and username tag"))
+    assert tag_title, _raise_exception(ParsingError("Missing title and join date tag"))
+
+    status: str = ""
+    name: str = tag_status.text.strip()
+    title: str
+    join_date_str: str
+
+    if not user_tag.select_one("img.type-admin"):
+        status, name = name[0], name[1:]
+
+    if "|" in (tag_title_text := tag_title.text.strip()):
+        title, join_date_str = tag_title_text.rsplit("|", 1)
+    else:
+        title, join_date_str = "", tag_title_text
+    join_date: datetime = parse_date(join_date_str.split(":", 1)[1].strip())
 
     return {
         "user_name": name,
@@ -789,10 +816,20 @@ def parse_user_journals(journals_page: BeautifulSoup) -> dict[str, Any]:
 
 
 def parse_watchlist(watch_page: BeautifulSoup) -> tuple[list[tuple[str, str]], int]:
-    tags_users: list[Tag] = watch_page.select("div.watch-list-items")
     tag_next: Optional[Tag] = watch_page.select_one("section div.floatright form[method=get]")
     match_next: Optional[Match] = watchlist_next_regexp.match(get_attr(tag_next, "action")) if tag_next else None
-    return (
-        [((u := t.text.strip().replace(" ", ""))[0], u[1:]) for t in tags_users],
-        int(match_next[1]) if match_next else 0,
-    )
+
+    watches: list[tuple[str, str]] = []
+
+    for tag_user in watch_page.select("div.watch-list-items"):
+        user_link: Optional[Tag] = tag_user.select_one("a")
+        assert user_link, _raise_exception(ParsingError("Missing user link"))
+
+        username: str = user_link.text.strip()
+        user_link.decompose()
+
+        status: str = tag_user.text.strip()
+
+        watches.append((status, username))
+
+    return watches, int(match_next[1]) if match_next else 0
