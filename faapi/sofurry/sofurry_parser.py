@@ -1,4 +1,5 @@
 from datetime import datetime
+from optparse import Option
 from re import MULTILINE
 from re import Match
 from re import Pattern
@@ -10,6 +11,7 @@ import re
 from typing import Any, TypeVar
 from typing import Optional
 from typing import Union
+from unicodedata import category
 
 from bbcode import Parser as BBCodeParser  # type:ignore
 from bs4 import BeautifulSoup
@@ -18,7 +20,8 @@ from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 from htmlmin import minify # type:ignore
 
-from faapi.parse import parse_html_page  
+from faapi.parse import parse_html_page
+from faapi.user import UserStats  
 
 from ..exceptions import DisabledAccount
 from ..exceptions import NoTitle
@@ -29,7 +32,7 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
-from parse import clean_html, inner_html
+from faapi.parse import clean_html, inner_html
 
 T = TypeVar('T') 
 
@@ -50,6 +53,34 @@ def getOnlyElementOrNone(l):
 def get(e: Optional[T], message: str) -> T:
     assert e is not None, _raise_exception(ParsingError(f"Missing {message}"))
     return e
+
+def find(page: BeautifulSoup | Tag, regexe_exprs: dict[str, str], *args, **kwargs):
+    matches = {}
+    def generateMatcher(regex):
+        def matcher(e: Optional[str]) -> bool:
+            if e is None:
+                return False
+            nonlocal matches
+            match = regex.match(e)
+            if match:
+                matches |= match.groupdict()
+                return True
+            matches = {}
+            return False
+        return matcher
+    funcs = { key: generateMatcher(re.compile(regexe_exprs[key])) for key  in regexe_exprs }
+    page.find(*args, **kwargs, **funcs)
+    return matches    
+
+def parse_loggedin_user(page: BeautifulSoup) -> Optional[str]:
+    a_tag = page.select_one("div.topbar-user a.avatar")
+    if a_tag is None:
+        return None
+
+    return find(page, {"href" : "https://(?P<username>.*?)\\.sofurry\\.com/"}, "a")["username"]
+
+def username_url(username: str) -> str:
+    return sub(r"[^a-z\d.~-]", "", username.lower())
 
 def parse_user_small(author_tag: Tag) -> dict[str, Any]:
 
@@ -188,7 +219,7 @@ def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
     assert tag_title is not None, _raise_exception(ParsingError("Missing title tag"))
     assert tag_content is not None, _raise_exception(ParsingError("Missing content tag"))
 
-    id_match = re.match("https://www.sofurryfiles.com/std/thumb?page=(.*?)&ext=.*", tag_id.attrs["content"]):
+    id_match = re.match("https://www.sofurryfiles.com/std/thumb?page=(.*?)&ext=.*", tag_id.attrs["content"])
     assert id_match is not None, _raise_exception(ParsingError("Missing link tag"))
     id_ = int(id_match[1])
     
@@ -275,23 +306,15 @@ def parse_watchlist_page(page: BeautifulSoup) -> dict[str, Any]:
 
 def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
 
-    tag_profile: Optional[Tag] = user_page.select_one("#sf-section-1 sftc-content span span span")
+    tag_profile: Optional[Tag] = user_page.select_one("#sf-section-1 .sftc-content span span span")
     tag_stats: Optional[Tag] = user_page.select_one('[style="display: table; white-space: nowrap; font-size: smaller;"]')
     tag_contacts: Optional[Tag] = user_page.select_one("#sf-accounts")
-    
-    tag_stats: Optional[Tag] = user_page.select_one("div.userpage-section-right div.table")
-    
-    tag_user_nav_controls: Optional[Tag] = user_page.select_one("div.user-nav-controls")
-
-    
 
     assert tag_stats is not None, _raise_exception(ParsingError("Missing stats tag"))
     assert tag_profile is not None, _raise_exception(ParsingError("Missing profile tag"))
-    assert tag_stats is not None, _raise_exception(ParsingError("Missing stats tag"))
-    assert tag_user_nav_controls is not None, _raise_exception(ParsingError("Missing user nav controls tag"))
 
-    tag_watch: Optional[Tag] = tag_user_nav_controls.select_one("form[action^='/watch'], a[form[action^='/unwatch']")
-    tag_block: Optional[Tag] = tag_user_nav_controls.select_one("form[action^='/block'], a[form[action^='/unblock']")
+    tag_watch: Optional[Tag] = user_page.select_one("form[action^='/watch'], form[action^='/unwatch']")
+    tag_block: Optional[Tag] = user_page.select_one("form[action^='/block'], form[action^='/unblock']")
 
 
     profile: str = clean_html(inner_html(tag_profile))
@@ -299,19 +322,40 @@ def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
     stats_scraped: dict[str, str] = {}
     info: dict[str, str] = {}
 
-    for stat_row_tag in tag_stats.findChildren():
-        category_tag = stat_row_tag.findChildren(class_ = "sfTextMedLight")
-        left_cell, right_cell = stat_row_tag.findChildren()
+    for stat_row_tag in tag_stats.findChildren("span", recursive = False):
+        category_tag = stat_row_tag.findChildren(class_ = "sfTextMedLight", recursive = False)[0]
+        if category_tag.text.strip() == "groups":
+            continue
+        left_cell, right_cell = stat_row_tag.findChildren(recursive = False)
         if category_tag == left_cell:
             info[left_cell.text.strip()] = right_cell.text.strip()
         else: 
             stats_scraped[right_cell.text.strip()] = left_cell.text.strip() 
 
+    def to_int(x: str) -> int:
+        return int(x.replace(",", ""))
+
+    watchers_tag = user_page.find(class_="wide-inactive", href=re.compile("https://(?P<username>.*)\\.sofurry\\.com/watchers"))
+    assert isinstance(watchers_tag, Tag)
+    watchers_span = watchers_tag.span
+    assert isinstance(watchers_span, Tag)
+    watchers = to_int(watchers_span.text.strip()[1:-1])
+
+    watching_tag = user_page.find(class_="wide-inactive", href=re.compile("https://(?P<username>.*)\\.sofurry\\.com/watching"))
+    assert isinstance(watching_tag, Tag)
+    watching_span = watching_tag.span
+    assert isinstance(watching_span, Tag)
+    watching = to_int(watching_span.text.strip()[1:-1])
+
     stats = UserStats(
-            views = stats_scraped["page views"]
-            submissions = stats_scraped["submissions"]
-            comments_earned = stats_scrapped["comments received"]
-            comments_made = stats_scrapped["comments posted"]
+            views = to_int(stats_scraped["page views"]),
+            submissions = to_int(stats_scraped["submissions"]),
+            comments_earned = to_int(stats_scraped["comments received"]),
+            comments_made = to_int(stats_scraped["comments posted"]),
+            favorites = 0,
+            journals = 0,
+            watched_by = watchers,
+            watching = watching
     )
 
     tag_key: Optional[Tag]
@@ -329,8 +373,12 @@ def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
     block: Optional[str] = f"{root}{tag_block_href}" if tag_block_href.endswith("/block") else None
     unblock: Optional[str] = f"{root}{tag_block_href}" if tag_block_href.endswith("/unblock") else None
 
+    parsed_user_tag = parse_user_big(user_page)
     return {
-        **parse_user_big(user_page),
+        "name": parsed_user_tag["name"],
+        "user_icon_url": parsed_user_tag["icon_url"],
+        "title": parsed_user_tag["title"],
+        "join_date": parsed_user_tag["join_date"],
         "profile": profile,
         "stats": stats,
         "info": info,
@@ -363,10 +411,10 @@ def parse_user_big(user_tag: Tag) -> dict[str, Any]:
     
 
     return {
-        "user_name": name,
-        "user_title": title,
-        "user_join_date": join_date,
-        "user_icon_url": user_icon_url
+        "name": name,
+        "title": title,
+        "join_date": join_date,
+        "icon_url": user_icon_url
     }
 
 
@@ -395,3 +443,40 @@ def parse_user_submissions(submissions_page: BeautifulSoup) -> dict[str, Any]:
         "figures": parse_submission_figures(submissions_page),
         "last_page": last_page,
     }
+
+def parse_journal_section(section_tag: Tag) -> dict[str, Any]:
+    raise NotImplementedError
+
+def parse_submission_figure(figure_tag: Tag) -> dict[str, Any]:
+    raise NotImplementedError
+
+def parse_user_favorites(favorites_page: BeautifulSoup) -> dict[str, Any]:
+    raise NotImplementedError
+
+def parse_user_journals(journals_page: BeautifulSoup) -> dict[str, Any]:
+    raise NotImplementedError
+
+def check_page_raise(page: BeautifulSoup) -> None:
+    if page is None:
+        raise NonePage
+    """
+    elif not (title := page.title.text.lower() if page.title else ""):
+        raise NoTitle
+    elif title.startswith("account disabled"):
+        raise DisabledAccount
+    elif title == "system error":
+        error_text: str = error.text if (error := page.select_one("div.section-body")) else ""
+        if any(m in error_text.lower() for m in not_found_messages):
+            raise NotFound
+        else:
+            raise ServerError(*filter(bool, map(str.strip, error_text.splitlines())))
+    elif notice := page.select_one("section.notice-message"):
+        notice_text: str = notice.text
+        if any(m in notice_text.lower() for m in deactivated_messages):
+            raise DisabledAccount
+        elif any(m in notice_text.lower() for m in not_found_messages):
+            raise NotFound
+        else:
+            raise NoticeMessage(*filter(bool, map(str.strip, notice_text.splitlines())))
+    """
+

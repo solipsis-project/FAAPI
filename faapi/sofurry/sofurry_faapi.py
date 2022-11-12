@@ -10,6 +10,7 @@ from urllib.robotparser import RobotFileParser
 
 from faapi.base import FAAPI_BASE
 from faapi.comment import Comment, sort_comments
+from faapi.parse import html_to_bbcode
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict
@@ -23,16 +24,13 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page, parse_watchlist_page
+from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page, parse_watchlist_page, username_url
 from .sofurry_parser import check_page_raise
 from .sofurry_parser import parse_loggedin_user
 from .sofurry_parser import parse_submission_figures
 from .sofurry_parser import parse_user_favorites
 from .sofurry_parser import parse_user_journals
 from .sofurry_parser import parse_user_submissions
-from .sofurry_parser import parse_watchlist
-from .sofurry_parser import username_url
-from .sofurry_parser import html_to_bbcode
 from ..submission import Submission
 from ..submission import SubmissionPartial
 from ..user import User
@@ -55,7 +53,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         self.session: CloudflareScraper = make_session(cookies)  # Session used for get requests
         
         super().__init__(
-            robots = get_robots(self.session, self.root()),  # robots.txt handler
+            robots = get_robots(self.session, "https://sofurry.com"),  # robots.txt handler
             timeout = None,  # Timeout for requests
             raise_for_unauthorized = True  # Control login checks
         )
@@ -79,7 +77,7 @@ class SoFurryFAAPI(FAAPI_BASE):
 
         :return: A User object for the logged-in user, or None if the cookies are not from a login session.
         """
-        return self.user(user) if (user := parse_loggedin_user(self.get_parsed("login"))) else None
+        return self.user(user) if (user := parse_loggedin_user(self.get_parsed(""))) else None
 
     def frontpage(self) -> list[SubmissionPartial]:
         """
@@ -136,7 +134,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param user: The name of the user (_ characters are allowed).
         :return: A User object.
         """
-        beautifulSoup = self.get_parsed(join_url("user", username_url(user)))
+        beautifulSoup = self.get_parsed("", root=f"https://{username_url(user)}.sofurry.com/", adult=1)
         parsed_user = parse_user_page(beautifulSoup)
         watch = parsed_user.pop("watch")
         unwatch = parsed_user.pop("unwatch")
@@ -146,7 +144,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         parsed_user["watched_toggle_link"] = watch or unwatch or None
         parsed_user["blocked"] = block is None and unblock is not None
         parsed_user["blocked_toggle_link"] = block or unblock or None
-        return User(SoFurryFAAPI, User.Record(**parsed_user))
+        return User(SoFurryFAAPI, User.Record(status= "", **parsed_user))
 
     # noinspection DuplicatedCode
     def gallery(self, user: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
@@ -173,7 +171,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         """
         if page is None:
             # Return as subfolders the different submission types
-            sub_folders = [ f"https://{user}.sofurry.com/{submission_type}" for submission_type in ["stories", "artwork", "photos", "music"]]
+            sub_folders = [ f"https://{username_url(user)}.sofurry.com/{submission_type}" for submission_type in ["stories", "artwork", "photos", "music"]]
 
             return ([], None, sub_folders)
 
