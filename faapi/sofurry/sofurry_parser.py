@@ -8,7 +8,7 @@ from re import match
 from re import search
 from re import sub
 import re
-from typing import Any, TypeVar
+from typing import Any, Tuple, TypeVar
 from typing import Optional
 from typing import Union
 from unicodedata import category
@@ -55,7 +55,7 @@ def get(e: Optional[T], message: str) -> T:
     assert e is not None, _raise_exception(ParsingError(f"Missing {message}"))
     return e
 
-def find(page: BeautifulSoup | Tag, regexe_exprs: dict[str, str], *args, **kwargs):
+def find(page: BeautifulSoup | Tag, regexe_exprs: dict[str, str], *args, **kwargs) -> Tuple[dict, Optional[Tag]]:
     matches = {}
     def generateMatcher(regex):
         def matcher(e: Optional[str]) -> bool:
@@ -70,15 +70,17 @@ def find(page: BeautifulSoup | Tag, regexe_exprs: dict[str, str], *args, **kwarg
             return False
         return matcher
     funcs = { key: generateMatcher(re.compile(regexe_exprs[key])) for key  in regexe_exprs }
-    page.find(*args, **kwargs, **funcs)
-    return matches    
+    foundTag = page.find(*args, **kwargs, **funcs)
+    assert (foundTag is None) or isinstance(foundTag, Tag)
+    return matches, foundTag    
 
 def parse_loggedin_user(page: BeautifulSoup) -> Optional[str]:
     a_tag = page.select_one("div.topbar-user a.avatar")
     if a_tag is None:
         return None
 
-    return find(page, {"href" : "https://(?P<username>.*?)\\.sofurry\\.com/"}, "a")["username"]
+    matches, tag = find(page, {"href" : "https://(?P<username>.*?)\\.sofurry\\.com/"}, "a")
+    return matches["username"]
 
 def username_url(username: str) -> str:
     return sub(r"[^a-z\d.~`-]", "", username.lower())
@@ -108,9 +110,15 @@ def getStats(page: BeautifulSoup):
     assert isinstance(statsContent, Tag), _raise_exception(ParsingError("Missing Stats Content"))
     stats = list(s.strip() for s in statsContent.strings)
     def parseStats(regexp: str, match_group = 1) -> str:
-        reMatch = next(filter(None, (re.search(regexp, stat) for stat in stats)))
-        assert reMatch is not None, _raise_exception(ParsingError(f"Missing Stat {regexp}"))
-        return reMatch[match_group]
+        reMatches = (re.search(regexp, stat) for stat in stats)
+        positiveMatches = (match for match in reMatches if match is not None)
+        # Get first non-None match, or throw an exception.
+        try:
+            reMatch = next(positiveMatches)
+            return reMatch[match_group]
+        except StopIteration:
+            _raise_exception(ParsingError(f"Missing Stat {regexp}"))
+        
     
     return parseStats
 
@@ -162,7 +170,8 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     faves = int(parseStats("(\\d+) faves?"))
     commentCount = int(parseStats("(\\d+) comments?"))
 
-    folderId = find(sub_page, {"href": "/browse/folder/stories\\?by=(?P<uid>.*?)&folder=(?P<folderid>.*?)"}, "a").get("folderid", None)
+    matches, linkTag = find(sub_page, {"href": "/browse/folder/stories\\?by=(?P<uid>.*?)&folder=(?P<folderid>.*?)"}, "a")
+    folderId = None if (linkTag is None) else matches.get("folderid")
 
     descriptionTag = sub_page.select_one("#sfContentBody" if isImage else "#sfContentDescription")
     
@@ -183,7 +192,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
                 "story"
 
     return {
-        "id": submitId,
+        "id": int(submitId),
         "title": title,
         "author": parsed_user["user"],
         "author_icon_url": parsed_user["user_icon_url"],
@@ -230,12 +239,15 @@ def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
     publishTime: datetime = parse_date(publishTimeStr)
     
     content: str = clean_html(inner_html(tag_content))
-    commentCount = int(parseStats("\\d+ comments"))
+    commentCount = int(parseStats("(\\d+) comments?"))
 
     assert id_ != 0, _raise_exception(ParsingError("Missing ID"))
 
+    user = parse_user_small(journal_page)
+    user_name = user.pop("user")
     return {
-        **parse_user_small(journal_page),
+        "user_name": user_name,
+        **user, 
         "id": id_,
         "title": title,
         "date": publishTime,
@@ -379,10 +391,10 @@ def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
 
     parsed_user_tag = parse_user_big(user_page)
     return {
-        "name": parsed_user_tag["name"],
-        "user_icon_url": parsed_user_tag["icon_url"],
-        "title": parsed_user_tag["title"],
-        "join_date": parsed_user_tag["join_date"],
+        "name": parsed_user_tag["user_name"],
+        "user_icon_url": parsed_user_tag["user_icon_url"],
+        "title": parsed_user_tag["user_title"],
+        "join_date": parsed_user_tag["user_join_date"],
         "profile": profile,
         "stats": stats,
         "info": info,
@@ -423,22 +435,23 @@ def parse_user_big(user_tag: Tag) -> dict[str, Any]:
 
 
 def parse_artwork_figures(figures_page: BeautifulSoup) -> list[Tag]:
-    return figures_page.select(".sfBrowseListFolders .sfArtworkSmallWrapper")
+    return figures_page.select(".sfBrowseListContent .sfArtworkSmallWrapper")
 
 def parse_artwork_figure(figure: Tag) -> dict[str, Any]:
-    inner_tag = figure.select_one(".sfArtworkSmallInner img")
-    data = find(figure, { "id": "sfArtwork(?P<id>\\d+)", "alt": "(?P<title>.*)|by (?P<author>)", "src": "(?P<thumbnail_url>.*)" }, "img")
-    if data["title"] is None:
+    inner_tag = figure.select_one(".sfArtworkSmallInner")
+    data, imgTag = find(figure, { "id": "sfArtwork(?P<id>\\d+)", "alt": "(?P<title>.*)|by (?P<author>)", "src": "(?P<thumbnail_url>.*)" }, "img")
+    if not "title" in data:
         # TODO: Get the title of the submission by querying it directly.
-        raise ParsingError(f"Artwork figure {id} has no title. This is a known issue that can happen when the title contains a quote character.")
-    data["type"] = "artwork"
-    if "sf-boxshadow-extreme" in inner_tag["class"]:
+        raise ParsingError(f"Artwork figure {data['id']} has no title. This is a known issue that can happen when the title contains a quote character.")
+
+    if "sf-boxshadow-extreme" in imgTag["class"]:
         data["rating"] = "extreme"
-    elif "sf-boxshadow-adult" in inner_tag["class"]:
+    elif "sf-boxshadow-adult" in imgTag["class"]:
         data["rating"] = "adult"
     else:
-        assert "sf-boxshadow-default" in inner_tag["class"]
+        assert "sf-boxshadow-default" in imgTag["class"]
         data["rating"] = "general"
+    data["id"] = int(data["id"])
     return data
 
 def parse_written_figures(figures_page: BeautifulSoup) -> list[Tag]:
@@ -494,13 +507,16 @@ def parse_subfolders(page: BeautifulSoup) -> dict[str, Any]:
     }
 
 def parse_user_submissions(submissions_page: BeautifulSoup) -> dict[str, Any]:
-    last_page = not any(submissions_page.select(".next"))
+    last_page = not any(submissions_page.select("li.next"))
+    first_page = not any(submissions_page.select("li.previous"))
 
     return {
         **parse_user_big(submissions_page),
         **parse_subfolders(submissions_page),
         "figures": parse_submission_figures(submissions_page),
+        "first_page": first_page,
         "last_page": last_page,
+        "next_page": parse_next_page(submissions_page)
     }
 
 def parse_journal_section(section_tag: Tag) -> JournalPartial.Record:
@@ -521,7 +537,7 @@ def parse_journal_section(section_tag: Tag) -> JournalPartial.Record:
     content = "" if content_tag is None else clean_html(inner_html(content_tag))
 
     return JournalPartial.Record(
-        id = data["id"],
+        id = int(data["id"]),
         title = data["title"],
         comments = 0,
         date = date,
