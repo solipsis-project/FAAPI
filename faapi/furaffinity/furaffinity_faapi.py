@@ -227,7 +227,7 @@ class FAAPI(FAAPI_BASE):
             j.author = author
         return (journals, (page + 1) if not info_parsed["last_page"] else None, [])
 
-    def watchlist_to(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
+    def watchlist_to(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
         Fetch a page from the list of users watching the user.
 
@@ -235,6 +235,7 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
+        page = page or 1
         users: list[UserPartial] = []
         us, np = parse_watchlist(
             self.get_parsed(join_url("watchlist", "to", quote(username_url(user)), page), skip_auth_check=True))
@@ -245,13 +246,14 @@ class FAAPI(FAAPI_BASE):
             users.append(_user)
         return (users, np if np and np != page else None, [])
 
-    def watchlist_by(self, user: str, page: Any = 1) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
+    def watchlist_by(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
         Fetch a page from the list of users watched by the user.
         :param user: The name of the user (_ characters are allowed).
         :param page: The page to fetch.
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
+        page = page or 1
         users: list[UserPartial] = []
         us, np = parse_watchlist(
             self.get_parsed(join_url("watchlist", "by", quote(username_url(user)), page), skip_auth_check=True))
