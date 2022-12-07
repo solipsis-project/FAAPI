@@ -25,7 +25,7 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page, parse_watchlist_page, username_url
+from .sofurry_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_page, parse_user_page, parse_watchlist_page, username_url
 from .sofurry_parser import check_page_raise
 from .sofurry_parser import parse_loggedin_user
 from .sofurry_parser import parse_submission_figures
@@ -131,7 +131,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param journal_id: The ID of the journal.
         :return: A Journal object.
         """
-        beautiful_soup = self.get_parsed(join_url("journal", int(journal_id)))
+        beautiful_soup = self.get_parsed(join_url("view", int(journal_id)))
         parsed = Journal.Record(**parse_journal_page(beautiful_soup))
         journal = Journal(SoFurryFAAPI, parsed)
         comments = [Comment(SoFurryFAAPI, Comment.Record(**parse_comment_tag(t)), journal) for t in parse_comments(beautiful_soup)]
@@ -182,11 +182,11 @@ class SoFurryFAAPI(FAAPI_BASE):
         """
         if page is None:
             # Return as subfolders the different submission types
-            sub_folders = [ f"https://{username_url(user)}.sofurry.com/{submission_type}" for submission_type in ["stories", "artwork", "photos", "music"]]
+            sub_folders = [ f"//{username_url(user)}.sofurry.com/{submission_type}" for submission_type in ["stories", "artwork", "photos", "music"]]
 
             return ([], None, sub_folders)
 
-        page_parsed: BeautifulSoup = self.get_parsed(page)
+        page_parsed: BeautifulSoup = self.get_parsed(self.get_parsed("", root = f"https:{page}"))
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(SoFurryFAAPI)
         author.name, author.status, author.title, author.join_date, author.user_icon_url = [
@@ -194,7 +194,7 @@ class SoFurryFAAPI(FAAPI_BASE):
             info_parsed["user_title"], info_parsed["user_join_date"],
             info_parsed["user_icon_url"]
         ]
-        submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+        submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**figure)) for figure in info_parsed["figures"]]
         for s in submissions:
             s.author = author
 
@@ -217,7 +217,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         return ([], None, [])
 
 
-    def favorites(self, user: str, page: Any = "") -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+    def favorites(self, user: str, page: Any = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's favorites page.
 
@@ -225,12 +225,15 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", username_url(user), page.strip()))
+        # TODO: Unlike in FA, Favorites can include journals and characters. We don't currently scrape characters, and linking
+        # to a favorited journal may not work correctly.
+
+        page_parsed: BeautifulSoup = self.get_parsed("", root = f"https:{page}" if page else f"https://{user}.sofurry.com/favorites")
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
-        submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+        submissions = [SubmissionPartial(SoFurryFAAPI, SubmissionPartial.Record(**figure)) for figure in info_parsed["sections"]]
         return (submissions, info_parsed["next_page"] or None, [])
 
-    def journals(self, user: str, page: Any = 1) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
+    def journals(self, user: str, page: Any = None) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
         """
         Fetch a user's journals page.
 
@@ -238,20 +241,20 @@ class SoFurryFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of Journal objects and the next page (None if it is the last).
         """
-        page_parsed: BeautifulSoup = self.get_parsed(join_url("journals", username_url(user), int(page)))
+        page_parsed: BeautifulSoup = self.get_parsed("", root = f"https:{page}" if page else f"https://{user}.sofurry.com/journals")
         info_parsed: dict[str, Any] = parse_user_journals(page_parsed)
         author: UserPartial = UserPartial(SoFurryFAAPI)
-        author.name, author.status, author.title, author.join_date, author.user_icon_url = [
-            info_parsed["user_name"], info_parsed["user_status"],
+        author.name, author.title, author.join_date, author.user_icon_url = [
+            info_parsed["user_name"],
             info_parsed["user_title"], info_parsed["user_join_date"],
             info_parsed["user_icon_url"]
         ]
         journals = [
-            JournalPartial(SoFurryFAAPI, JournalPartial.Record(**parse_journal_section(tag)))
+            JournalPartial(SoFurryFAAPI, parse_journal_section(tag))
                 for tag in info_parsed["sections"]]
         for j in journals:
             j.author = author
-        return (journals, (page + 1) if not info_parsed["last_page"] else None, [])
+        return (journals, info_parsed["next_page"] or None, [])
 
     def watchlist_to(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
@@ -262,16 +265,16 @@ class SoFurryFAAPI(FAAPI_BASE):
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
         watchers_url = page or f"https://{user}.sofurry.com/watchers"
-        watchers_soup = self.get_parsed(watchers_url)
+        watchers_soup = self.get_parsed("", root = watchers_url)
         watchers = parse_watchlist_page(watchers_soup)
            
         users: list[UserPartial] = []
-        for user in watchers:
+        for user in watchers["users"]:
             _user: UserPartial = UserPartial(SoFurryFAAPI)
-            _user.name = user["user_name"]
-            _user.user_icon_url = user["user_icon_url"]
+            _user.name = watchers["user_name"]
+            _user.user_icon_url = watchers["user_icon_url"]
             users.append(_user)
-        return (users, watchers["next"], [])
+        return (users, watchers["next_page"], [])
 
     def watchlist_by(self, user: str, page: Any = None) -> tuple[list[UserPartial], Optional[Any], list[Any]]:
         """
@@ -281,16 +284,16 @@ class SoFurryFAAPI(FAAPI_BASE):
         :return: A list of UserPartial objects and the next page (None if it is the last).
         """
         watchers_url = page or f"https://{user}.sofurry.com/watching"
-        watchers_soup = self.get_parsed(watchers_url)
+        watchers_soup = self.get_parsed("", root = watchers_url)
         watchers = parse_watchlist_page(watchers_soup)
            
         users: list[UserPartial] = []
-        for user in watchers:
+        for user in watchers["users"]:
             _user: UserPartial = UserPartial(SoFurryFAAPI)
             _user.name = user["user_name"]
             _user.user_icon_url = user["user_icon_url"]
             users.append(_user)
-        return (users, watchers["next"], [])
+        return (users, watchers["next_page"], [])
 
     def parse_loggedin_user(self, page: BeautifulSoup) -> Optional[str]:
         return parse_loggedin_user(page)

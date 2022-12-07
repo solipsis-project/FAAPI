@@ -18,7 +18,8 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
-from htmlmin import minify # type:ignore
+from htmlmin import minify
+from faapi.journal import JournalPartial # type:ignore
 
 from faapi.parse import parse_html_page
 from faapi.user import UserStats  
@@ -106,7 +107,6 @@ def getStats(page: BeautifulSoup):
     statsContent = statsHeader.find_next_sibling(class_="section-content")
     assert isinstance(statsContent, Tag), _raise_exception(ParsingError("Missing Stats Content"))
     stats = list(s.strip() for s in statsContent.strings)
-    print(stats)
     def parseStats(regexp: str, match_group = 1) -> str:
         reMatch = next(filter(None, (re.search(regexp, stat) for stat in stats)))
         assert reMatch is not None, _raise_exception(ParsingError(f"Missing Stat {regexp}"))
@@ -162,7 +162,7 @@ def parse_submission_page(sub_page: BeautifulSoup) -> dict[str, Any]:
     faves = int(parseStats("(\\d+) faves?"))
     commentCount = int(parseStats("(\\d+) comments?"))
 
-    folderId = find(sub_page, {"href": "/browse/folder/stories\\?by=(?P<uid>.*?)&folder=(?P<folderid>.*?)"}).get("folderid", None)
+    folderId = find(sub_page, {"href": "/browse/folder/stories\\?by=(?P<uid>.*?)&folder=(?P<folderid>.*?)"}, "a").get("folderid", None)
 
     descriptionTag = sub_page.select_one("#sfContentBody" if isImage else "#sfContentDescription")
     
@@ -216,8 +216,8 @@ def parse_journal_page(journal_page: BeautifulSoup) -> dict[str, Any]:
     assert tag_id is not None, _raise_exception(ParsingError("Missing ID tag"))
     assert tag_title is not None, _raise_exception(ParsingError("Missing title tag"))
     assert tag_content is not None, _raise_exception(ParsingError("Missing content tag"))
-
-    id_match = re.match("https://www.sofurryfiles.com/std/thumb?page=(.*?)&ext=.*", tag_id.attrs["content"])
+    
+    id_match = re.match("https://www.sofurryfiles.com/std/thumb\\?page=(.*?)&ext=.*", tag_id.attrs["content"])
     assert id_match is not None, _raise_exception(ParsingError("Missing link tag"))
     id_ = int(id_match[1])
     
@@ -283,23 +283,29 @@ def parse_comment_tag(tag: Tag) -> dict:
         "parent": parent_id,
     }
 
+def parse_next_page(page: BeautifulSoup | Tag) -> Optional[str]:
+    next_page_tag = page.select_one("li.next")
+    if next_page_tag is None:
+        return None
+    if "hidden" in next_page_tag.attrs["class"]:
+        return None
+    return next_page_link.attrs["href"] if (next_page_link := next_page_tag.a) else None
+
 def parse_watchlist_page(page: BeautifulSoup) -> dict[str, Any]:
     user_tags = page.select("span.sf-item-h-info-content")
     users = []
     for user_tag in user_tags:
-        user_name = getOnlyElement(user_tag.stripped_strings)
+        user_name = getOnlyElement(list(user_tag.stripped_strings))
         user_icon_tag = get(user_tag.select_one("img"), "User Image")
-        user_icon_url = user_icon_tag.attrs["href"]
+        user_icon_url = user_icon_tag.attrs["src"]
         users.append({
             "user_name": user_name,
             "user_icon_url": user_icon_url
         })
-    next_page_tag = page.select_one("li.next")
-    next_page = next_page_link.attrs["href"] if next_page_tag and (next_page_link := next_page_tag.a) else None
 
     return {
         "users": users,
-        "next_page": next_page
+        "next_page": parse_next_page(page)
     }
 
 def parse_user_page(user_page: BeautifulSoup) -> dict[str, Any]:
@@ -409,15 +415,70 @@ def parse_user_big(user_tag: Tag) -> dict[str, Any]:
     
 
     return {
-        "name": name,
-        "title": title,
-        "join_date": join_date,
-        "icon_url": user_icon_url
+        "user_name": name,
+        "user_title": title,
+        "user_join_date": join_date,
+        "user_icon_url": user_icon_url
     }
 
 
-def parse_submission_figures(figures_page: BeautifulSoup) -> list[Tag]:
-    return figures_page.select(".sfArtworkSmallInner")
+def parse_artwork_figures(figures_page: BeautifulSoup) -> list[Tag]:
+    return figures_page.select(".sfBrowseListFolders .sfArtworkSmallWrapper")
+
+def parse_artwork_figure(figure: Tag) -> dict[str, Any]:
+    inner_tag = figure.select_one(".sfArtworkSmallInner img")
+    data = find(figure, { "id": "sfArtwork(?P<id>\\d+)", "alt": "(?P<title>.*)|by (?P<author>)", "src": "(?P<thumbnail_url>.*)" }, "img")
+    if data["title"] is None:
+        # TODO: Get the title of the submission by querying it directly.
+        raise ParsingError(f"Artwork figure {id} has no title. This is a known issue that can happen when the title contains a quote character.")
+    data["type"] = "artwork"
+    if "sf-boxshadow-extreme" in inner_tag["class"]:
+        data["rating"] = "extreme"
+    elif "sf-boxshadow-adult" in inner_tag["class"]:
+        data["rating"] = "adult"
+    else:
+        assert "sf-boxshadow-default" in inner_tag["class"]
+        data["rating"] = "general"
+    return data
+
+def parse_written_figures(figures_page: BeautifulSoup) -> list[Tag]:
+    return figures_page.select(".sf-story, .sf-story-big")
+
+def parse_written_figure(figure: Tag) -> dict[str, Any]:
+    title_tag = figure.select_one(".sf-story-big-headline a") or figure.select_one(".sf-story-headline a")
+    assert title_tag is not None, _raise_exception(ParsingError("Title not found"))
+    title = title_tag.attrs["href"]
+    id_string = figure.attrs["id"]
+    id_match = re.match("\\D*(\\d+)", id_string)
+    assert id_match is not None, _raise_exception(ParsingError("Figure id not found"))
+    id_ = id_match[1]
+
+    author_tag = figure.select_one(".sfTextAttention")
+    assert author_tag is not None, _raise_exception(ParsingError("Author tag not found"))
+
+    icon_tag = title_tag = figure.select_one(".sf-story-big-avatar img") or figure.select_one(".sf-story-avatar img")
+    assert icon_tag is not None, _raise_exception(ParsingError("Story icon not found"))
+
+    rating = "general"
+    if "sf-boxshadow-extreme" in icon_tag["class"]:
+        rating = "extreme"
+    elif "sf-boxshadow-adult" in icon_tag["class"]:
+        rating = "adult"
+    else:
+        assert "sf-boxshadow-default" in icon_tag["class"]
+
+    return {
+        "id": int(id_),
+        "title": title,
+        "author": author_tag.string,
+        "thumbnail_url": icon_tag.attrs["src"],
+        "rating": rating
+    }
+
+def parse_submission_figures(page: BeautifulSoup) -> list[dict[str, Any]]:
+    return ([parse_written_figure(f) for f in parse_written_figures(page)] +
+        [parse_artwork_figure(f) for f in parse_artwork_figures(page)])
+
 
 def parse_subfolder(subfolder: Tag) -> dict[str, Any]:
     tag_a = get(subfolder.a, "subfolder link")
@@ -427,7 +488,7 @@ def parse_subfolder(subfolder: Tag) -> dict[str, Any]:
     }
 
 def parse_subfolders(page: BeautifulSoup) -> dict[str, Any]:
-    subfolders = page.select(".sfArtworkSmallWrapper")
+    subfolders = page.select(".sfBrowseListFolders .sfArtworkSmallWrapper")
     return {
         "subfolders": [parse_subfolder(subfolder) for subfolder in subfolders]
     }
@@ -442,17 +503,48 @@ def parse_user_submissions(submissions_page: BeautifulSoup) -> dict[str, Any]:
         "last_page": last_page,
     }
 
-def parse_journal_section(section_tag: Tag) -> dict[str, Any]:
-    raise NotImplementedError
+def parse_journal_section(section_tag: Tag) -> JournalPartial.Record:
+    # journals on the journals page are formatted the same as written submissions
+    data = parse_written_figure(section_tag)
+    date_tag = section_tag.select_one("abbr")
 
-def parse_submission_figure(figure_tag: Tag) -> dict[str, Any]:
-    raise NotImplementedError
+    if date_tag is None:
+        date_tag = section_tag.select_one(".sf-story-big-metadata strong span")
+        date = parse_date(date_tag.string)
+    else:
+        date = parse_date(date_tag.attrs["title"])
+    # Only the first journal on each page has a preview.
+    content_tag = section_tag.select_one(".sf-story-big-content")
+
+    assert date_tag is not None, _raise_exception(ParsingError("Missing date tag"))
+
+    content = "" if content_tag is None else clean_html(inner_html(content_tag))
+
+    return JournalPartial.Record(
+        id = data["id"],
+        title = data["title"],
+        comments = 0,
+        date = date,
+        content = content,
+        mentions = [],
+        user_name= data["author"],
+        user_icon_url = data["thumbnail_url"]
+    )
+
 
 def parse_user_favorites(favorites_page: BeautifulSoup) -> dict[str, Any]:
-    raise NotImplementedError
+    return {
+        **parse_user_big(favorites_page),
+        "sections": parse_submission_figures(favorites_page),
+        "next_page": parse_next_page(favorites_page)
+    }
 
 def parse_user_journals(journals_page: BeautifulSoup) -> dict[str, Any]:
-    raise NotImplementedError
+    return {
+        **parse_user_big(journals_page),
+        "sections": journals_page.select(".sf-story, .sf-story-big"),
+        "next_page": parse_next_page(journals_page)
+    }
 
 def check_page_raise(page: BeautifulSoup) -> None:
     if page is None:
