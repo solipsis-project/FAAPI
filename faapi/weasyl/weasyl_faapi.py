@@ -442,4 +442,4 @@ class WeasylFAAPI(FAAPI_BASE):
 
     @staticmethod
     def username_url(username: str) -> str:
-        return sub(r"[^a-z\d.~-]", "", username.lower())
+        return sub(r"[^a-z\d.~`-]", "", username.lower())
