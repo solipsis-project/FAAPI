@@ -2,6 +2,12 @@
 
 <img alt="logo" width="400" src="https://raw.githubusercontent.com/FurryCoders/Logos/main/logos/faapi-transparent.png">
 
+This is a fork of [the original FAAPI](https://github.com/FurryCoders/FAAPI) designed to allow support for websites other than FurAffinity. Discussion of the fork can be found [here](https://github.com/orgs/FurryCoders/discussions/1).
+
+## How to use this fork
+
+Set an environment variable `FALOCALREPO_FAAPI_MODULE` with the full name of a python class containing an alternate FAAPI implementation. Several sample classes are provided in my fork of [FAAPI](https://github.com/solipsis-project/FAAPI), but you can make your own, provided that they implement the FAAPI_ABC interface (which is also defined in my fork of FAAPI).
+
 # Fur Affinity API
 
 Python library to implement API-like functionality for the [Fur Affinity](https://furaffinity.net) website.
