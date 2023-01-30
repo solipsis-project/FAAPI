@@ -101,7 +101,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
     """
     @staticmethod
     def root() -> str:
-        return "https://www.inkbunny.net/"
+        return "https://inkbunny.net/"
 
     def __init__(self, cookies: Union[list[CookieDict], CookieJar]):
         """
@@ -211,7 +211,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
                 author_title = "",
                 author_icon_url = getFirst(submission, USER_ICON_PRIORITY),
                 date = parse_date(submission["create_datetime"]),
-                tags = map(lambda x : x["keyword_name"], submission["keywords"]),
+                tags = sorted([ keyword["keyword_name"] for keyword in submission["keywords"]]),
                 category = "",
                 species = "",
                 gender = "",
@@ -254,7 +254,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
 
         # If the user doesn't exist, the response will be a member search page.
         if response.url.startswith(f"{self.root()}usersviewall.php"):
-            raise ServerError("User {user} does not exist.")
+            raise ServerError(f"User {user} does not exist.")
 
         return User(InkBunnyFAAPI, inkbunny_parser.parse_user_profile(user, beautifulSoup))
 
