@@ -56,13 +56,6 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
-def parse_logged_in_user(bs: BeautifulSoup) -> Optional[str]:
-    username_tag = bs.select_one("#usernavigation .loggedin_userdetails a.widget_userNameSmall")
-    if not username_tag:
-        return None
-
-    return username_tag.text
-
 def find_title_tag(bs: BeautifulSoup, title: str):
     for title_tag in bs.select("div.title"):
         if title_tag.text == title:
@@ -84,10 +77,8 @@ def parse_contact_details(bs: BeautifulSoup) -> dict[str, str]:
     return contacts
 
 def parse_user_profile(username: str, bs: BeautifulSoup) -> User.Record:
-    
 
-
-    profile_tag = find_title_tag("Profile")
+    profile_tag = find_title_tag(bs, "Profile")
     profile_description = clean_html(inner_html(profile_tag))
 
     views_tag = bs.select_one('span[title="Submission Views Received"] > strong')

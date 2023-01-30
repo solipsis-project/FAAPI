@@ -23,7 +23,7 @@ from ..connection import CookieDict
 from ..connection import Response
 from ..connection import get_robots
 from ..connection import make_session
-from ..exceptions import DisallowedPath, NonePage, ParsingError
+from ..exceptions import DisallowedPath, NonePage, ParsingError, ServerError
 from ..exceptions import Unauthorized
 from ..journal import Journal, JournalStats
 from ..journal import JournalPartial
@@ -35,24 +35,25 @@ from . import inkbunny_parser
 
 def convertRating(rating: str) -> str:
     match rating:
-        case "general":
+        case "General":
             return "General"
-        case "mature":
+        case "Mature":
             return "Mature"
-        case "explicit":
+        case "Adult":
             return "Explicit"
+    raise Exception(f"Unknown rating {rating}")
 
-def computeTypeFromExtension(extension: str, submitid: int) -> str:
-    match extension:
-        case "jpg" | "gif" | "png":
+def convertType(type: str) -> str:
+    match type:
+        case "Comic" | "Picture/Pinup":
             return "image"
+        case "Writing - Document":
+            return "text"
         case "swf":
             return "flash"
-        case "txt" | "md" | "pdf":
-            return "text"
         case "mp3":
             return "music"
-    raise Exception(f"Unknown file extension {extension} on submission {submitid}")
+    raise Exception(f"Unknown submission type {type}")
 
 # The InkBunny API doesn't use cookies. Instead the session id is passed as a query param.
 # For now, we will reuse the `$0 config cookies` feature but extract the sid from the cookies.
@@ -61,9 +62,9 @@ def getCookie(cookies: Union[list[CookieDict], CookieJar], name: str):
         if isinstance(cookie, Cookie):
             if cookie.name == name:
                 return cookie.value
-            else:
-                if cookie["name"] == name:
-                    return cookie["value"]
+        else:
+            if cookie["name"] == name:
+                return cookie["value"]
 
 # Long term: download every resolution (or make it configurable). For now, download the best resolution available
 
@@ -107,9 +108,9 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param cookies: The cookies for the session.
         """
 
-        sid: str = getCookie(cookies, "sid")
+        self.sid: str = getCookie(cookies, "sid")
 
-        self.web_session: CloudflareScraper = make_session(cookies)
+        self.session: CloudflareScraper = make_session(cookies)
         self.api_session: CloudflareScraper = make_session(cookies=[])  # Session used for get requests
         
         super().__init__(
@@ -137,7 +138,10 @@ class InkBunnyFAAPI(FAAPI_BASE):
         if response.status_code != 401:
             response.raise_for_status()
 
-        return response.json()
+        response_json = response.json()
+        if "error_code" in response_json:
+            raise ServerError(f"API response returned error: {response_json['error_message']}")
+        return response_json
     
    
     @property
@@ -157,7 +161,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
         """
         response = self.get_parsed("/")
 
-        return inkbunny_parser.parse_logged_in_user(response)
+        return self.parse_loggedin_user(response)
 
     def me(self) -> Optional[User]:
         """
@@ -188,17 +192,17 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param chunk_size: The chunk_size to be used for the download (does not override get_file).
         :return: A Submission object and a bytes object (if the submission file is downloaded).
         """
-        response: Any = self.get_json(f"/api_submissions.php", params = {"sid": self.sid, "submission_ids": str(submission_id), "show_description_bbcode_parsed": "yes", "show_pools": "yes" })
+        response: Any = self.get_json(f"/api_submissions.php", sid = self.sid, submission_ids = str(submission_id), show_description_bbcode_parsed = "yes", show_pools = "yes")
 
         assert len(response["submissions"]) == 1
 
         submission = response["submissions"][0]
-        assert submission["submission_id"] == submission_id
+        assert int(submission["submission_id"]) == submission_id
 
         sub: Submission = Submission(
             InkBunnyFAAPI,
             Submission.Record(
-                id = submission["submission_id"],
+                id = int(submission["submission_id"]),
                 title = submission["title"],
                 author = submission["username"],
                 rating = convertRating(submission["rating_name"]),
@@ -211,14 +215,14 @@ class InkBunnyFAAPI(FAAPI_BASE):
                 category = "",
                 species = "",
                 gender = "",
-                views = submission["views"],
-                comment_count = submission["comment_count"],
-                favorites = submission["favorites_count"],
+                views = int(submission["views"]),
+                comment_count = int(submission["comments_count"]),
+                favorites = int(submission["favorites_count"]),
                 description = submission["description_bbcode_parsed"],
                 footer = "",
                 mentions = [],
                 folder = "gallery" if (submission["scraps"] == "f") else "scraps",
-                user_folders = [SubmissionUserFolder(pool["name"], f"{self.root()}/poolview_process.php?pool_id={pool["pool_id"]}", "") for pool in submission["pools"]],
+                user_folders = [SubmissionUserFolder(pool["name"], f"{self.root()}poolview_process.php?pool_id={pool['pool_id']}", "") for pool in submission["pools"]],
                 file_url = getFirst(submission, USER_ICON_PRIORITY),
                 prev = 0,
                 next = 0,
@@ -246,15 +250,19 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param user: The name of the user (_ characters are allowed).
         :return: A User object.
         """
-        beautifulSoup = self.get_parsed(quote(inkbunny_parser.username_url(user)))
+        beautifulSoup, response = self.get_parsed(quote(self.username_url(user)), return_response=True)
 
-        return User(InkBunnyFAAPI, inkbunny_parser.parse_user_profile(beautifulSoup))
+        # If the user doesn't exist, the response will be a member search page.
+        if response.url.startswith(f"{self.root()}usersviewall.php"):
+            raise ServerError("User {user} does not exist.")
+
+        return User(InkBunnyFAAPI, inkbunny_parser.parse_user_profile(user, beautifulSoup))
 
     def search(self, params: Dict[str, str], page: Optional[Tuple[str, int]]):
         if page != None:
-            return self.get_json(f"/api_search.php", params = { "sid": self.sid, "rid": page[0], "page": page[1] })
+            return self.get_json(f"/api_search.php", sid = self.sid, rid = page[0], page = page[1])
         else:
-            return self.get_json(f"/api_search.php", params = params | { "sid": self.sid, "get_rid": "yes", "submissions_per_page": "100"})
+            return self.get_json(f"/api_search.php", sid = self.sid, get_rid = "yes", submissions_per_page = "100", **params)
 
     def gallery(self, user: str, page: Optional[Tuple[str, int]] = None) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
@@ -276,17 +284,17 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-        response = self.search({"username": user, "scraps": "yes"}, page)
+        response = self.search({"username": user, "scraps": "only"}, page)
 
         return self.parse_folder(response)
       
             
-    def parse_folder(response: Any, user: str):
+    def parse_folder(self, response: Any):
         submissions = [SubmissionPartial(InkBunnyFAAPI, SubmissionPartial.Record(
-            id = s["submission_id"],
+            id = int(s["submission_id"]),
             title = s["title"],
             rating = convertRating(s["rating_name"]),
-            type = computeTypeFromExtension(s["type_name"]),
+            type = convertType(s["type_name"]),
             thumbnail_url = getFirst(s, THUMBNAIL_PRIORITY),
             author = s["username"]
         )) for s in response["submissions"]]
@@ -339,7 +347,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
         if user != self.my_username():
             raise NotImplementedError
 
-        response = self.get_json(f"/api_watchlist.php", params = { "sid": self.sid })
+        response = self.get_json(f"/api_watchlist.php", sid = self.sid)
         
         followers = [UserPartial(InkBunnyFAAPI, UserPartial.Record(
             name = watch["username"],
@@ -363,3 +371,10 @@ class InkBunnyFAAPI(FAAPI_BASE):
     @staticmethod
     def username_url(username: str) -> str:
         return sub(r"[^a-z\d.~`-]", "", username.lower())
+
+    def parse_loggedin_user(self, bs: BeautifulSoup) -> Optional[str]:
+        username_tag = bs.select_one("#usernavigation .loggedin_userdetails a.widget_userNameSmall")
+        if not username_tag:
+            return None
+
+        return username_tag.text
