@@ -114,14 +114,16 @@ def parse_user_profile(username: str, bs: BeautifulSoup) -> User.Record:
     assert profile_image_tag is not None, _raise_exception(ParsingError("Missing profile image tag"))
 
     watchbox_tag = bs.select_one("#widget-watchbox-watchstate")
-    assert watchbox_tag is not None, _raise_exception(ParsingError("Missing profile watchbox tag"))
+    # Watchbox doesn't always appear (for example, there's no watchbox when viewing your own profile)
+    # assert watchbox_tag is not None, _raise_exception(ParsingError("Missing profile watchbox tag"))
 
-    watched = (watchbox_tag["value"] == "true")
+    watched = (watchbox_tag is not None) and (watchbox_tag["value"] == "true")
 
     block_remove_form = bs.select_one("#block_remove_form")
-    assert block_remove_form is not None, _raise_exception(ParsingError("Missing block remove form tag"))
+    # Block form doesn't always appear (for example, there's you can't block yourself.)
+    # assert block_remove_form is not None, _raise_exception(ParsingError("Missing block remove form tag"))
 
-    blocked = "UnBlock user's submissions." in block_remove_form.next_sibling.next_sibling.text
+    blocked = (block_remove_form is not None) and "UnBlock user's submissions." in block_remove_form.next_sibling.next_sibling.text
 
     return User.Record(
         name = username,
