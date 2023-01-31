@@ -216,7 +216,9 @@ class InkBunnyFAAPI(FAAPI_BASE):
                 species = "",
                 gender = "",
                 views = int(submission["views"]),
-                comment_count = int(submission["comments_count"]),
+                # TODO: scrape comments. Until then, report a comment count of 0.
+                #comment_count = int(submission["comments_count"]),
+                comment_count = 0,
                 favorites = int(submission["favorites_count"]),
                 description = submission["description_bbcode_parsed"],
                 footer = "",
@@ -226,7 +228,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
                 file_url = getFirst(submission, USER_ICON_PRIORITY),
                 prev = 0,
                 next = 0,
-                favorite = submission["favorite"],
+                favorite = (submission["favorite"] == 't'),
                 favorite_toggle_link = "",
             )
         )
