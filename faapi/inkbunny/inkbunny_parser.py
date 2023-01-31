@@ -56,6 +56,9 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 def find_title_tag(bs: BeautifulSoup, title: str):
     for title_tag in bs.select("div.title"):
         if title_tag.text == title:
@@ -127,14 +130,14 @@ def parse_user_profile(username: str, bs: BeautifulSoup) -> User.Record:
         title = "",
         join_date = datetime.fromtimestamp(0),
         stats = UserStats(
-            views= int(views_tag.text),
-            submissions= int(submissions_tag.text),
-            favorites= int(favorites_tag.text),
-            comments_earned= int(comments_earned_tag.text),
-            comments_made= int(comments_made_tag.text),
-            journals= int(journals_tag.text),
-            watched_by= int(watchers_tag.text),
-            watching= int(watches_tag.text)
+            views= locale.atoi(views_tag.text),
+            submissions= locale.atoi(submissions_tag.text),
+            favorites= locale.atoi(favorites_tag.text),
+            comments_earned= locale.atoi(comments_earned_tag.text),
+            comments_made= locale.atoi(comments_made_tag.text),
+            journals= locale.atoi(journals_tag.text),
+            watched_by= locale.atoi(watchers_tag.text),
+            watching= locale.atoi(watches_tag.text)
         ),
         info = {},
         contacts= contacts,
