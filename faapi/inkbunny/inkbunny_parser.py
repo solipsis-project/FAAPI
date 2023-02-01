@@ -62,7 +62,7 @@ locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 def find_title_tag(bs: BeautifulSoup, title: str):
     for title_tag in bs.select("div.title"):
         if title_tag.text == title:
-            return title_tag.next_sibling.span
+            return title_tag
     _raise_exception(ParsingError(f"Missing {title} tag"))
 
 def parse_contact_details(bs: BeautifulSoup) -> dict[str, str]:
@@ -70,7 +70,7 @@ def parse_contact_details(bs: BeautifulSoup) -> dict[str, str]:
 
     contacts: dict[str, str] = {}
 
-    for div_tag in contacts_tag.next_siblings:
+    for div_tag in contacts_tag.find_next_siblings("div"):
         children = div_tag.find_all("div", recursive = False)
         if len(children) == 2:
             site_name = children[0].text
@@ -82,7 +82,8 @@ def parse_contact_details(bs: BeautifulSoup) -> dict[str, str]:
 def parse_user_profile(username: str, bs: BeautifulSoup) -> User.Record:
 
     profile_tag = find_title_tag(bs, "Profile")
-    profile_description = clean_html(inner_html(profile_tag))
+    profile_description_tag = profile_tag.find_next_sibling("div").span
+    profile_description = clean_html(inner_html(profile_description_tag))
 
     views_tag = bs.select_one('span[title="Submission Views Received"] > strong')
     assert views_tag is not None, _raise_exception(ParsingError("Missing views tag"))
