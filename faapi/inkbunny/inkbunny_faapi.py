@@ -95,6 +95,9 @@ def getFirst(d, keys):
             return d[key]
     return None
 
+def join_multipart_field(parts: list[str]):
+    return "|" + "||".join(parts) + "|"
+
 class InkBunnyFAAPI(FAAPI_BASE):
     """
     This class provides the methods to access and parse Fur Affinity pages and retrieve objects.
@@ -225,7 +228,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
                 mentions = [],
                 folder = "gallery" if (submission["scraps"] == "f") else "scraps",
                 user_folders = [SubmissionUserFolder(pool["name"], f"{self.root()}poolview_process.php?pool_id={pool['pool_id']}", "") for pool in submission["pools"]],
-                file_url = getFirst(submission, USER_ICON_PRIORITY),
+                file_url = join_multipart_field(getFirst(file, FILE_PRIORITY) for file in submission["files"]),
                 prev = 0,
                 next = 0,
                 favorite = (submission["favorite"] == 't'),
@@ -274,6 +277,9 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
+        # Attempt at backwards compatibility with older versions of FALocalRepo that assume 1 is always the first page.
+        if page == 1:
+            page = None
         response = self.search({"username": user, "scraps": "no"}, page)
 
         return self.parse_folder(response)
@@ -286,6 +292,9 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
+        # Attempt at backwards compatibility with older versions of FALocalRepo that assume 1 is always the first page.
+        if page == 1:
+            page = None
         response = self.search({"username": user, "scraps": "only"}, page)
 
         return self.parse_folder(response)
