@@ -92,7 +92,7 @@ class FAAPI(FAAPI_BASE):
         submissions: list[SubmissionPartial] = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(f))) for f in submission_tags]
         return sorted({s for s in submissions}, reverse=True)
 
-    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
+    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: Optional[int] = None
                    ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.
@@ -122,7 +122,16 @@ class FAAPI(FAAPI_BASE):
         :return: A Journal object.
         """
         beautiful_soup = self.get_parsed(join_url("journal", int(journal_id)))
-        parsed = Journal.Record(**parse_journal_page(beautiful_soup))
+
+        journal_dict = parse_journal_page(beautiful_soup)
+        user_info = journal_dict.pop("user_info")
+        parsed = Journal.Record(
+            **journal_dict,
+            user_name=user_info["name"],
+            user_title=user_info["title"],
+            user_status=user_info["status"],
+            user_join_date=user_info["join_date"],
+            avatar_url=user_info["avatar_url"])
         journal = Journal(FAAPI, parsed)
         comments = [Comment(FAAPI, Comment.Record(**parse_comment_tag(t)), journal) for t in parse_comments(beautiful_soup)]
         journal.comments = sort_comments(comments)
@@ -156,13 +165,16 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
+        if page is None:
+            page = 1
         page_parsed: BeautifulSoup = self.get_parsed(join_url("gallery", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
-        author.name, author.status, author.title, author.join_date, author.user_icon_url = [
-            info_parsed["user_name"], info_parsed["user_status"],
-            info_parsed["user_title"], info_parsed["user_join_date"],
-            info_parsed["user_icon_url"]
+        user_info = info_parsed["user_info"]
+        author.name, author.status, author.title, author.join_date, author.avatar_url = [
+            user_info["name"], user_info["status"],
+            user_info["title"], user_info["join_date"],
+            user_info["avatar_url"]
         ]
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         for s in submissions:
@@ -178,13 +190,16 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
+        if page is None:
+            page = 1
         page_parsed: BeautifulSoup = self.get_parsed(join_url("scraps", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_submissions(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
-        author.name, author.status, author.title, author.join_date, author.user_icon_url = [
-            info_parsed["user_name"], info_parsed["user_status"],
-            info_parsed["user_title"], info_parsed["user_join_date"],
-            info_parsed["user_icon_url"]
+        user_info = info_parsed["user_info"]
+        author.name, author.status, author.title, author.join_date, author.avatar_url = [
+            user_info["name"], user_info["status"],
+            user_info["title"], user_info["join_date"],
+            user_info["avatar_url"]
         ]
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
         for s in submissions:
@@ -199,6 +214,8 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
+        if page is None:
+            page = ""
         page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", quote(username_url(user)), page.strip()))
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
@@ -212,13 +229,15 @@ class FAAPI(FAAPI_BASE):
         :param page: The page to fetch.
         :return: A list of Journal objects and the next page (None if it is the last).
         """
+        if page == None:
+            page = 1
         page_parsed: BeautifulSoup = self.get_parsed(join_url("journals", quote(username_url(user)), int(page)))
         info_parsed: dict[str, Any] = parse_user_journals(page_parsed)
         author: UserPartial = UserPartial(FAAPI)
-        author.name, author.status, author.title, author.join_date, author.user_icon_url = [
-            info_parsed["user_name"], info_parsed["user_status"],
-            info_parsed["user_title"], info_parsed["user_join_date"],
-            info_parsed["user_icon_url"]
+        author.name, author.status, author.title, author.join_date, author.avatar_url = [
+            info_parsed["name"], info_parsed["status"],
+            info_parsed["title"], info_parsed["join_date"],
+            info_parsed["avatar_url"]
         ]
         journals = [
             JournalPartial(FAAPI, JournalPartial.Record(**parse_journal_section(tag)))

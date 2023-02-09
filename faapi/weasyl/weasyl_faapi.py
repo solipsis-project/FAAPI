@@ -143,7 +143,7 @@ class WeasylFAAPI(FAAPI_BASE):
             for f in frontpage_submissions if f["type"] == "submission"]
         return sorted({s for s in submissions}, reverse=True)
 
-    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
+    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: Optional[int] = None
                    ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.

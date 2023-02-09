@@ -182,7 +182,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
         """
         raise NotImplementedError
 
-    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
+    def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: Optional[int] = None
                    ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.

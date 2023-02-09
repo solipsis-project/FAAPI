@@ -183,6 +183,7 @@ class User(UserBase):
         info: dict[str, str]
         contacts: dict[str, str]
         avatar_url: str
+        banner_url: Optional[str] = None
         watched: bool
         watched_toggle_link: Optional[str]
         blocked: bool
