@@ -16,7 +16,7 @@ from dateutil.tz import tzutc
 
 from urllib.parse import quote
 
-from faapi.base import FAAPI_BASE
+from faapi.base import FAAPI_BASE, join_multipart_field
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict
@@ -94,9 +94,6 @@ def getFirst(d, keys):
         if key in d:
             return d[key]
     return None
-
-def join_multipart_field(parts: list[str]):
-    return "|" + "||".join(parts) + "|"
 
 class InkBunnyFAAPI(FAAPI_BASE):
     """
@@ -186,7 +183,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
         raise NotImplementedError
 
     def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
-                   ) -> tuple[Submission, Optional[bytes]]:
+                   ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.
 
@@ -236,7 +233,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
             )
         )
                 
-        sub_file: Optional[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else None
+        sub_file: list[bytes] = self.submission_files(sub, chunk_size=chunk_size) if get_file and sub.id else []
         return sub, sub_file
 
     def journal(self, journal_id: int) -> Journal:

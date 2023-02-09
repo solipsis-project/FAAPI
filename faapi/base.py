@@ -22,6 +22,12 @@ from .parse import parse_html_page
 from .submission import Submission
 from .interface.faapi_abc import FAAPI_ABC
 
+def join_multipart_field(parts: list[str]):
+    return "|" + "||".join(parts) + "|"
+
+def parse_multipart_field(obj: str) -> list[str]:
+    return obj.removeprefix("|").removesuffix("|").split("||")
+
 class FAAPI_BASE(FAAPI_ABC):
 
     def __init__(self, robots: RobotFileParser, timeout: Optional[int], raise_for_unauthorized : bool):
@@ -127,7 +133,7 @@ class FAAPI_BASE(FAAPI_ABC):
     def check_page_raise(self, page: BeautifulSoup) -> None:
         ...
 
-    def submission_file(self, submission: Submission, *, chunk_size: Optional[int] = None) -> bytes:
+    def submission_files(self, submission: Submission, *, chunk_size: Optional[int] = None) -> bytes:
         """
         Fetch a submission file from a Submission object.
 
@@ -135,5 +141,7 @@ class FAAPI_BASE(FAAPI_ABC):
         :param chunk_size: The chunk_size to be used for the download.
         :return: The submission file as a bytes object.
         """
-        self.handle_delay()
-        return stream_binary(self.session, submission.file_url, chunk_size=chunk_size, timeout=self.timeout)
+        def submission_file(file_url):
+            self.handle_delay()
+            return stream_binary(self.session, file_url, chunk_size=chunk_size, timeout=self.timeout)
+        return [submission_file(file_url) for file_url in parse_multipart_field(submission.file_url)]

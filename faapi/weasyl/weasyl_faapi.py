@@ -144,7 +144,7 @@ class WeasylFAAPI(FAAPI_BASE):
         return sorted({s for s in submissions}, reverse=True)
 
     def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: int = None
-                   ) -> tuple[Submission, Optional[bytes]]:
+                   ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.
 
@@ -187,7 +187,7 @@ class WeasylFAAPI(FAAPI_BASE):
             )
         )
                 
-        sub_file: Optional[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else None
+        sub_file: list[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else []
         return sub, sub_file
 
     def journal(self, journal_id: int) -> Journal:

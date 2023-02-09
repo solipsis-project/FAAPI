@@ -119,7 +119,7 @@ class SoFurryFAAPI(FAAPI_BASE):
         return sorted({s for s in submissions}, reverse=True)
 
     def submission(self, submission_id: int, get_file: bool = False, *, chunk_size: Optional[int] = None
-                   ) -> tuple[Submission, Optional[bytes]]:
+                   ) -> tuple[Submission, list[bytes]]:
         """
         Fetch a submission and, optionally, its file.
 
@@ -147,7 +147,7 @@ class SoFurryFAAPI(FAAPI_BASE):
             hidden = False,
             **parse_comment_tag(t)), sub) for t in parse_comments(beautiful_soup)]
         sub.comments = sort_comments(comments)
-        sub_file: Optional[bytes] = self.submission_file(sub, chunk_size=chunk_size) if get_file and sub.id else None
+        sub_file: list[bytes] = self.submission_files(sub, chunk_size=chunk_size) if get_file and sub.id else []
         return sub, sub_file
 
     def journal(self, journal_id: int) -> Journal:
