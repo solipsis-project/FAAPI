@@ -30,8 +30,9 @@ def join_url(*url_comps: Union[str, int]) -> str:
     return "/".join(map(lambda e: str(e).strip(" /"), url_comps))
 
 
-def make_session(cookies: Union[list[CookieDict], CookieJar]) -> CloudflareScraper:
-    assert len(cookies), _raise_exception(Unauthorized("No cookies for session"))
+def make_session(cookies: Union[list[CookieDict], CookieJar], raise_for_no_cookies: bool = True) -> CloudflareScraper:
+    if raise_for_no_cookies:
+        assert len(cookies), _raise_exception(Unauthorized("No cookies for session"))
     session: CloudflareScraper = create_scraper()
     session.headers["User-Agent"] = f"faapi/{__version__} Python/{python_version()} {(u := uname()).system}/{u.release}"
 

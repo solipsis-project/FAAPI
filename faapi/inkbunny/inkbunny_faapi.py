@@ -111,7 +111,7 @@ class InkBunnyFAAPI(FAAPI_BASE):
         self.sid: str = getCookie(cookies, "sid")
 
         self.session: CloudflareScraper = make_session(cookies)
-        self.api_session: CloudflareScraper = make_session(cookies=[])  # Session used for get requests
+        self.api_session: CloudflareScraper = make_session(cookies=[], raise_for_no_cookies=False)  # Session used for get requests
         
         super().__init__(
             robots = get_robots(self.session, self.root()),  # robots.txt handler
