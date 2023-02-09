@@ -106,7 +106,7 @@ def test_user(test_data, cookies: RequestsCookieJar, user_test_data: dict):
 def test_submission(test_data, cookies: RequestsCookieJar, submission_test_data: dict):
     api: FAAPI_ABC = test_data.backend(cookies)
 
-    submission, file = api.submission(submission_test_data["id"], get_file=True)
+    submission, files = api.submission(submission_test_data["id"], get_file=True)
     submission_dict = dict(submission)
 
     assert submission.id == submission_dict["id"] == submission_test_data["id"]
@@ -144,7 +144,9 @@ def test_submission(test_data, cookies: RequestsCookieJar, submission_test_data:
     #assert submission.description_bbcode == submission_test_data["description_bbcode"]
     #assert submission.footer_bbcode == submission_test_data["footer_bbcode"]
 
-    assert file is not None and len(file) > 0
+    assert len(files) > 0
+    for file in files:
+        assert(len(file)) > 0
 
     assert len(faapi.comment.flatten_comments(submission.comments)) == submission.stats.comments
 
