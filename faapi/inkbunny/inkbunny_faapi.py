@@ -255,7 +255,9 @@ class InkBunnyFAAPI(FAAPI_BASE):
         :param user: The name of the user (_ characters are allowed).
         :return: A User object.
         """
-        beautifulSoup, response = self.get_parsed(quote(self.username_url(user)), return_response=True)
+        response_wrapper = {}
+        beautifulSoup = self.get_parsed(quote(self.username_url(user)), output=response_wrapper)
+        response = response_wrapper["response"]
 
         # If the user doesn't exist, the response will be a member search page.
         if response.url.startswith(f"{self.root()}usersviewall.php"):

@@ -97,7 +97,7 @@ class FAAPI_BASE(FAAPI_ABC):
         self.handle_delay()
         return get(self.session, root if root else self.root(), path, timeout=self.timeout, params=params)
 
-    def get_parsed(self, path: str, *, root: Optional[str] = None, skip_page_check: bool = False, skip_auth_check: bool = False,
+    def get_parsed(self, path: str, *, root: Optional[str] = None, skip_page_check: bool = False, skip_auth_check: bool = False, output: dict[str,Response] | None = None,
                    **params: Union[str, bytes, int, float]) -> BeautifulSoup:
         """
         Fetch a path with a GET request and parse it using BeautifulSoup.
@@ -115,6 +115,8 @@ class FAAPI_BASE(FAAPI_ABC):
             self.check_page_raise(page)
         if not skip_auth_check and self.raise_for_unauthorized and not self.parse_loggedin_user(page):
             raise Unauthorized("Not logged in")
+        if output is not None:
+            output["response"] = response
         return page
 
     @abstractmethod
