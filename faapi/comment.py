@@ -31,13 +31,13 @@ class Comment:
         timestamp: datetime
         user_name: str
         user_title: str
-        user_icon_url: str
+        avatar_url: str
         text: str
         parent: int
         edited: bool
         hidden: bool
 
-    def __init__(self, parserClass: Type[FAAPI_ABC], tag: Optional[Record] = None, parent: Union[Submission, Journal] = None):
+    def __init__(self, parserClass: Type[FAAPI_ABC], tag: Optional[Record] = None, parent: Union[None, Submission, Journal] = None):
         """
         :param tag: The comment tag from which to parse information
         :param parent: The parent object of the comment
@@ -146,7 +146,7 @@ class Comment:
         self.author = UserPartial(self.parserClass)
         self.author.name = self.comment_tag.user_name
         self.author.title = self.comment_tag.user_title
-        self.author.user_icon_url = self.comment_tag.user_icon_url
+        self.author.avatar_url = self.comment_tag.avatar_url
         self.text = self.comment_tag.text
         self.replies = []
         self.reply_to = self.comment_tag.parent

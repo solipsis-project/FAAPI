@@ -50,8 +50,8 @@ def get_robots(session: Session, root: str) -> RobotFileParser:
     robots.parse(filter(re_compile(r"^[^#\s].+").match, map(str.strip, session.get(url).text.splitlines())))
     return robots
 
-def get(session: CloudflareScraper, root: str, path: str, *, timeout: int = None,
-        params: dict[str, Union[str, bytes, int, float]] = None) -> Response:
+def get(session: CloudflareScraper, root: str, path: str, *, timeout: Optional[int] = None,
+        params: Optional[dict[str, Union[str, bytes, int, float]]] = None) -> Response:
     return session.get(join_url(root, path), params=params, timeout=timeout)
 
 

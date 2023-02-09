@@ -120,7 +120,7 @@ class JournalPartial(JournalBase):
         user_name: str = ""
         user_status: str = ""
         user_title: str = ""
-        user_icon_url: str = ""
+        avatar_url: str = ""
         user_join_date: datetime = datetime.min
 
     def __init__(self,  parserClass : Type[FAAPI_ABC], journal_tag: Optional[Record] = None):
@@ -153,7 +153,7 @@ class JournalPartial(JournalBase):
         self.author.status = self.journal_tag.user_status
         self.author.title = self.journal_tag.user_title
         self.author.join_date = self.journal_tag.user_join_date
-        self.author.user_icon_url = self.journal_tag.user_icon_url
+        self.author.avatar_url = self.journal_tag.avatar_url
         self.stats = JournalStats(self.journal_tag.comments)
         self.date = self.journal_tag.date
         self.content = self.journal_tag.content
@@ -175,7 +175,7 @@ class Journal(JournalBase):
         user_status: str
         user_title: str
         user_join_date: datetime
-        user_icon_url: str
+        avatar_url: str
         date: datetime
         content: str
         header: str
@@ -243,7 +243,7 @@ class Journal(JournalBase):
         self.author.status = self.journal_page.user_status
         self.author.title = self.journal_page.user_title
         self.author.join_date = self.journal_page.user_join_date
-        self.author.user_icon_url = self.journal_page.user_icon_url
+        self.author.avatar_url = self.journal_page.avatar_url
         self.stats = JournalStats(self.journal_page.comments)
         self.date = self.journal_page.date
         self.content = self.journal_page.content

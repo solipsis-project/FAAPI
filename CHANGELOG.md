@@ -1,5 +1,41 @@
 # Changelog
 
+## v3.10.0
+
+### New Features
+
+* Fur Affinity UI update
+    * Support the new UI introduced on November 26, 2022
+    * *Note:* the new UI does not show comment parents yet, but the parent comment link is stil present in the HTML and
+      just commented out, so the parser uses regex to extract the parent ID; this could cause unforeseen issues so be
+      careful when parsing comments
+* User banners
+    * Parse new user banners (when set)
+    * New `User.banner_url` variable holds the banner URL
+
+### Changes
+
+* Rename `User.user_icon_url` and `UserPartial.user_icon_url` to `User.avatar_url` and `UserPartial.avatar_url`
+
+### Dependencies
+
+* Use [flake ^6.0.0](https://pypi.org/project/flake/6.0.0) for testing
+
+## v3.9.6
+
+### Changes
+
+* Remove implicit `Optional` types to comply with [PEP 484](https://peps.python.org/pep-0484/)
+
+### Fixes
+
+* Fix selectors for date tags in journals and submissions which sometimes caused the incorrect date to be selected
+
+### Dependencies
+
+* Use [mypy ^0.991](https://pypi.org/project/mypy/0.991)
+    * Complies with [PEP 484](https://peps.python.org/pep-0484/)
+
 ## v3.9.5
 
 ### Changes

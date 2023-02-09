@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "faapi"
-version = "3.9.5"
+version = "3.10.0"
 description = "Python module to implement API-like functionality for the FurAffinity.net website."
 authors = ["Matteo Campinoti <matteo.campinoti94@gmail.com>"]
 license = "EUPL-1.2"
@@ -36,9 +36,9 @@ bbcode = "^1.1.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
-mypy = "^0.982"
+mypy = "^0.991"
 types-beautifulsoup4 = "^4.11.6"
-flake8 = "^5.0.4"
+flake8 = "^6.0.0"
 
 [build-system]
 requires = ["poetry>=0.12"]

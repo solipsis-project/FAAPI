@@ -285,7 +285,7 @@ class Submission(SubmissionBase):
         self.title = self.submission_page.title
         self.author.name = self.submission_page.author
         self.author.title = self.submission_page.author_title
-        self.author.user_icon_url = self.submission_page.author_icon_url
+        self.author.avatar_url = self.submission_page.author_icon_url
         self.date = self.submission_page.date
         self.tags = self.submission_page.tags
         self.category = self.submission_page.category

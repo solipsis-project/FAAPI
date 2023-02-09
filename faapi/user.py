@@ -103,7 +103,7 @@ class UserBase:
         """
         return join_url(self.parserClass.root(), "user", quote(self.name_url))
 
-    def generate_user_icon_url(self) -> str:
+    def generate_avatar_url(self) -> str:
         """
         Generate the URl for the current user icon.
 
@@ -124,7 +124,7 @@ class UserPartial(UserBase):
         status: str
         title: str
         join_date: datetime
-        user_icon_url: str
+        avatar_url: str
 
     def __init__(self, parserClass : Type[FAAPI_ABC], user_tag: Optional[Record] = None):
         """
@@ -136,7 +136,7 @@ class UserPartial(UserBase):
         self.user_tag: Optional[UserPartial.Record] = user_tag
         self.title: str = ""
         self.join_date: datetime = datetime.fromtimestamp(0)
-        self.user_icon_url: str = ""
+        self.avatar_url: str = ""
 
         self.parse()
 
@@ -145,7 +145,7 @@ class UserPartial(UserBase):
         yield "status", self.status
         yield "title", self.title
         yield "join_date", self.join_date
-        yield "user_icon_url", self.user_icon_url
+        yield "avatar_url", self.avatar_url
 
     def parse(self, user_tag: Optional[Record] = None):
         """
@@ -164,7 +164,7 @@ class UserPartial(UserBase):
         self.status = self.user_tag.status
         self.title = self.user_tag.title
         self.join_date = self.user_tag.join_date
-        self.user_icon_url = self.user_tag.user_icon_url
+        self.avatar_url = self.user_tag.avatar_url
 
 class User(UserBase):
     """
@@ -182,7 +182,7 @@ class User(UserBase):
         stats: UserStats
         info: dict[str, str]
         contacts: dict[str, str]
-        user_icon_url: str
+        avatar_url: str
         watched: bool
         watched_toggle_link: Optional[str]
         blocked: bool
@@ -201,7 +201,8 @@ class User(UserBase):
         self.stats: UserStats = UserStats(0, 0, 0, 0, 0, 0, 0, 0)
         self.info: dict[str, str] = {}
         self.contacts: dict[str, str] = {}
-        self.user_icon_url: str = ""
+        self.avatar_url: str = ""
+        self.banner_url: Optional[str] = None
         self.watched: bool = False
         self.watched_toggle_link: Optional[str] = None
         self.blocked: bool = False
@@ -218,7 +219,8 @@ class User(UserBase):
         yield "stats", self.stats._asdict()
         yield "info", self.info
         yield "contacts", self.contacts
-        yield "user_icon_url", self.user_icon_url
+        yield "avatar_url", self.avatar_url
+        yield "banner_url", self.banner_url
         yield "watched", self.watched
         yield "watched_toggle_link", self.watched_toggle_link
         yield "blocked", self.blocked
@@ -253,7 +255,7 @@ class User(UserBase):
         self.stats = UserStats(*self.user_page.stats)
         self.info = self.user_page.info
         self.contacts = self.user_page.contacts
-        self.user_icon_url = self.user_page.user_icon_url
+        self.avatar_url = self.user_page.avatar_url
         self.watched = self.user_page.watched
         self.watched_toggle_link = self.user_page.watched_toggle_link
         self.blocked = self.user_page.blocked
