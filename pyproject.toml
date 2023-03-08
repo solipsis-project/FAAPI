@@ -1,28 +1,27 @@
 [tool.poetry]
-name = "faapi"
+name = "localrepo-api"
 version = "3.10.0"
-description = "Python module to implement API-like functionality for the FurAffinity.net website."
-authors = ["Matteo Campinoti <matteo.campinoti94@gmail.com>"]
+description = "Python module to implement API-like functionality for art gallery websites. A fork of FAAPI."
+authors = ["The Solipsis Project <the.solipsis.project@gmail.com>", "Matteo Campinoti <matteo.campinoti94@gmail.com>"]
 license = "EUPL-1.2"
 readme = "README.md"
-homepage = "https://github.com/FurryCoders/FAAPI"
-repository = "https://github.com/FurryCoders/FAAPI"
+homepage = "https://github.com/solipsis-project/localrepo-api"
+repository = "https://github.com/solipsis-project/localrepo-api"
 classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Operating System :: OS Independent",
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Typing :: Typed",
 ]
 
 [tool.poetry.urls]
-"Changelog" = "https://github.com/FurryCoders/FAAPI/blob/main/CHANGELOG.md"
-"Source" = "https://github.com/FurryCoders/FAAPI"
-"Download" = "https://pypi.org/project/faapi/#files"
-"Bug Reports" = "https://github.com/FurryCoders/FAAPI/issues"
+"Changelog" = "https://github.com/solipsis-project/localrepo-api/blob/main/CHANGELOG.md"
+"Source" = "https://github.com/solipsis-project/localrepo-api"
+"Bug Reports" = "https://github.com/solipsis-project/localrepo-api/issues"
 
 [tool.poetry.dependencies]
 python = "^3.9"

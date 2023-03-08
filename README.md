@@ -2,22 +2,21 @@
 
 <img alt="logo" width="400" src="https://raw.githubusercontent.com/FurryCoders/Logos/main/logos/faapi-transparent.png">
 
-This is a fork of [the original FAAPI](https://github.com/FurryCoders/FAAPI) designed to allow support for websites other than FurAffinity. Discussion of the fork can be found [here](https://github.com/orgs/FurryCoders/discussions/1).
+This is a fork of [FAAPI](https://github.com/FurryCoders/FAAPI) designed to allow support for websites other than FurAffinity. Discussion of the fork can be found [here](https://github.com/orgs/FurryCoders/discussions/1).
 
 ## How to use this fork
 
-Set an environment variable `FALOCALREPO_FAAPI_MODULE` with the full name of a python class containing an alternate FAAPI implementation. Several sample classes are provided in my fork of [FAAPI](https://github.com/solipsis-project/FAAPI), but you can make your own, provided that they implement the FAAPI_ABC interface (which is also defined in my fork of FAAPI).
+Set an environment variable `FALOCALREPO_FAAPI_MODULE` with the full name of a python class containing an alternate FAAPI implementation. Several sample classes are provided here, but you can make your own, provided that they implement the FAAPI_ABC interface (which is also defined in this fork).
 
-# Fur Affinity API
+# Local Repo API
 
-Python library to implement API-like functionality for the [Fur Affinity](https://furaffinity.net) website.
+Python library to implement API-like functionality for art gallery websites.
 
-[![](https://img.shields.io/pypi/v/faapi?logo=pypi)](https://pypi.org/project/faapi/)
 [![](https://img.shields.io/pypi/pyversions/faapi?logo=Python)](https://www.python.org)
 
-[![](https://img.shields.io/github/v/tag/FurryCoders/faapi?label=github&sort=date&logo=github&color=blue)](https://github.com/FurryCoders/faapi)
-[![](https://img.shields.io/github/issues/FurryCoders/faapi?logo=github&color=blue)](https://github.com/FurryCoders/FAAPI/issues)
-[![](https://img.shields.io/github/workflow/status/FurryCoders/FAAPI/Test?label=Test&logo=githubactions)](https://github.com/FurryCoders/FAAPI/actions/workflows/test.yml)
+[![](https://img.shields.io/github/v/tag/FurryCoders/faapi?label=github&sort=date&logo=github&color=blue)](https://github.com/solipsis-project/localrepo-api)
+[![](https://img.shields.io/github/issues/FurryCoders/faapi?logo=github&color=blue)](https://github.com/solipsis-project/localrepo-api/issues)
+[![](https://img.shields.io/github/workflow/status/FurryCoders/FAAPI/Test?label=Test&logo=githubactions)](https://github.com/solipsis-project/localrepo-api/actions/workflows/test.yml)
 
 </div>
 
@@ -599,7 +598,7 @@ details.
 ## Issues
 
 If any problem is encountered during usage of the program, an issue can be opened
-on [GitHub](https://github.com/FurryCoders/FAAPI/issues).
+on [GitHub](https://github.com/solipsis-project/localrepo-api/issues).
 
 Issues can also be used to suggest improvements and features.
 
