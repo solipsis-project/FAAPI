@@ -19,10 +19,10 @@ from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 from htmlmin import minify
-from faapi.journal import JournalPartial # type:ignore
+from localrepo_api.journal import JournalPartial # type:ignore
 
-from faapi.parse import parse_html_page
-from faapi.user import UserStats  
+from localrepo_api.parse import parse_html_page
+from localrepo_api.user import UserStats  
 
 from ..exceptions import DisabledAccount
 from ..exceptions import NoTitle
@@ -33,7 +33,7 @@ from ..exceptions import ParsingError
 from ..exceptions import ServerError
 from ..exceptions import _raise_exception
 
-from faapi.parse import clean_html, inner_html
+from localrepo_api.parse import clean_html, inner_html
 
 T = TypeVar('T') 
 

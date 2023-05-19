@@ -8,22 +8,22 @@ from pytest import fixture
 from pytest import raises
 from requests import Response
 
-from faapi.connection import CloudflareScraper
-from faapi.connection import join_url
-from faapi.connection import make_session
-from faapi.connection import root
-from faapi.exceptions import DisabledAccount
-from faapi.exceptions import NotFound
-from faapi.parse import bbcode_to_html
-from faapi.parse import check_page_raise
-from faapi.parse import clean_html
-from faapi.parse import html_to_bbcode
-from faapi.parse import parse_journal_page
-from faapi.parse import parse_loggedin_user
-from faapi.parse import parse_page
-from faapi.parse import parse_submission_page
-from faapi.parse import parse_user_page
-from faapi.parse import username_url
+from localrepo_api.connection import CloudflareScraper
+from localrepo_api.connection import join_url
+from localrepo_api.connection import make_session
+from localrepo_api.connection import root
+from localrepo_api.exceptions import DisabledAccount
+from localrepo_api.exceptions import NotFound
+from localrepo_api.parse import bbcode_to_html
+from localrepo_api.parse import check_page_raise
+from localrepo_api.parse import clean_html
+from localrepo_api.parse import html_to_bbcode
+from localrepo_api.parse import parse_journal_page
+from localrepo_api.parse import parse_loggedin_user
+from localrepo_api.parse import parse_page
+from localrepo_api.parse import parse_submission_page
+from localrepo_api.parse import parse_user_page
+from localrepo_api.parse import username_url
 
 __root__: Path = Path(__file__).resolve().parent
 

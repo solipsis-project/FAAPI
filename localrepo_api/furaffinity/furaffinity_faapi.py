@@ -7,8 +7,8 @@ from typing import Union
 from urllib.parse import quote
 from urllib.robotparser import RobotFileParser
 
-from faapi.base import FAAPI_BASE
-from faapi.comment import Comment, sort_comments
+from localrepo_api.base import FAAPI_BASE
+from localrepo_api.comment import Comment, sort_comments
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict
@@ -22,7 +22,7 @@ from ..exceptions import DisallowedPath
 from ..exceptions import Unauthorized
 from ..journal import Journal
 from ..journal import JournalPartial
-from .furaffinity_parser import BeautifulSoup, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page
+from .furaffinity_parser import BeautifulSoup, parse_tag_search, parse_comment_tag, parse_comments, parse_journal_page, parse_journal_section, parse_submission_figure, parse_submission_page, parse_user_page
 from .furaffinity_parser import check_page_raise
 from .furaffinity_parser import parse_loggedin_user
 from .furaffinity_parser import parse_submission_figures
@@ -219,7 +219,56 @@ class FAAPI(FAAPI_BASE):
         page_parsed: BeautifulSoup = self.get_parsed(join_url("favorites", quote(username_url(user)), page.strip()))
         info_parsed: dict[str, Any] = parse_user_favorites(page_parsed)
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+
         return (submissions, info_parsed["next_page"] or None, [])
+
+    # noinspection DuplicatedCode
+    def tags(self, tag: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+        """
+        Fetch all submissions with a given tag.
+
+        :param tag: The tag to search for.
+        :param page: The page to fetch.
+        :return: A list of SubmissionPartial objects and the next page (None if it is the last).
+        """
+        if page is None:
+            page = 1
+        options = {
+            "page": page,
+            "q": "@keywords+{}".format(tag),
+            "do_search": "Search",
+            "order-by": "date",
+            "order-direction": "desc",
+            "range": "all",
+            "range_from": "",
+            "range_to": "",
+            "rating-general": "1",
+            "rating-mature": "1",
+            "rating-adult": "1",
+            "type-art": "1",
+            "type-music": "1",
+            "type-flash": "1",
+            "type-story": "1",
+            "type-photo": "1",
+            "type-poetry": "1",
+            "mode": "extended",
+            "one": "on"
+        }
+        page_parsed: BeautifulSoup = self.get_parsed(
+            "search",
+            **options)
+        info_parsed: dict[str, Any] = parse_tag_search(page_parsed)
+        author: UserPartial = UserPartial(FAAPI)
+        user_info = info_parsed["user_info"]
+        author.name, author.status, author.title, author.join_date, author.avatar_url = [
+            user_info["name"], user_info["status"],
+            user_info["title"], user_info["join_date"],
+            user_info["avatar_url"]
+        ]
+        submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
+        for s in submissions:
+            s.author = author
+        return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
 
     def journals(self, user: str, page: Any = 1) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
         """

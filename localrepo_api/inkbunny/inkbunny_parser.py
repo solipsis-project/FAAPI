@@ -15,8 +15,8 @@ from bs4.element import NavigableString
 from bs4.element import Tag
 from dateutil.parser import parse as parse_date
 
-from faapi.parse import clean_html, inner_html
-from faapi.user import User, UserStats
+from localrepo_api.parse import clean_html, inner_html
+from localrepo_api.user import User, UserStats
 
 from ..exceptions import DisabledAccount, Unauthorized
 from ..exceptions import NoTitle

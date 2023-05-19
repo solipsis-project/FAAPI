@@ -16,7 +16,7 @@ from dateutil.tz import tzutc
 
 from urllib.parse import quote
 
-from faapi.base import FAAPI_BASE, join_multipart_field
+from localrepo_api.base import FAAPI_BASE, join_multipart_field
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict

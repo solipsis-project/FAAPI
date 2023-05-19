@@ -9,16 +9,16 @@ from pytest import raises
 from requests.cookies import RequestsCookieJar
 
 import faapi
-from faapi import Comment
-from faapi import FAAPI
-from faapi import JournalPartial
-from faapi import SubmissionPartial
-from faapi import UserPartial
-from faapi.exceptions import DisallowedPath
-from faapi.exceptions import Unauthorized
-from faapi.furaffinity.furaffinity_parser import username_url
-from faapi.interface.faapi_abc import FAAPI_ABC
-from faapi.parse import clean_html
+from localrepo_api import Comment
+from localrepo_api import FAAPI
+from localrepo_api import JournalPartial
+from localrepo_api import SubmissionPartial
+from localrepo_api import UserPartial
+from localrepo_api.exceptions import DisallowedPath
+from localrepo_api.exceptions import Unauthorized
+from localrepo_api.furaffinity.furaffinity_parser import username_url
+from localrepo_api.interface.faapi_abc import FAAPI_ABC
+from localrepo_api.parse import clean_html
 
 
 

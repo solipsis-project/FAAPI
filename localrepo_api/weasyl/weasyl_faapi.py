@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from dateutil.parser import parse as parse_date
 from dateutil.tz import tzutc
 
-from faapi.base import FAAPI_BASE
+from localrepo_api.base import FAAPI_BASE
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict

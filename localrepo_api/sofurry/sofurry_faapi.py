@@ -9,9 +9,9 @@ from typing import Optional
 from typing import Union, Tuple
 from urllib.robotparser import RobotFileParser
 
-from faapi.base import FAAPI_BASE
-from faapi.comment import Comment, sort_comments
-from faapi.parse import html_to_bbcode
+from localrepo_api.base import FAAPI_BASE
+from localrepo_api.comment import Comment, sort_comments
+from localrepo_api.parse import html_to_bbcode
 
 from ..connection import CloudflareScraper
 from ..connection import CookieDict

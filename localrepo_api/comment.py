@@ -7,15 +7,15 @@ from typing import Union
 
 from bs4.element import Tag
 
-from faapi.interface.faapi_abc import FAAPI_ABC
+from localrepo_api.interface.faapi_abc import FAAPI_ABC
 from .exceptions import _raise_exception
 
-from faapi.user import UserPartial
+from localrepo_api.user import UserPartial
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from faapi.submission import Submission
-    from faapi.journal import Journal
+    from localrepo_api.submission import Submission
+    from localrepo_api.journal import Journal
     
 
 

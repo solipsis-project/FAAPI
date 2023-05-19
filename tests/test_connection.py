@@ -10,13 +10,13 @@ from requests import Response
 from requests import Session
 from requests.cookies import RequestsCookieJar
 
-from faapi.__version__ import __version__
-from faapi.connection import CloudflareScraper
-from faapi.connection import get_robots
-from faapi.connection import join_url
-from faapi.connection import make_session
-from faapi.connection import root
-from faapi.exceptions import Unauthorized
+from localrepo_api.__version__ import __version__
+from localrepo_api.connection import CloudflareScraper
+from localrepo_api.connection import get_robots
+from localrepo_api.connection import join_url
+from localrepo_api.connection import make_session
+from localrepo_api.connection import root
+from localrepo_api.exceptions import Unauthorized
 
 __root__: Path = Path(__file__).resolve().parent
 

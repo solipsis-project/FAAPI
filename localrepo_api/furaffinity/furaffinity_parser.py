@@ -20,7 +20,7 @@ from dateutil.parser import parse as parse_date
 from htmlmin import minify # type:ignore
 from urllib3.util import parse_url
 
-from faapi.parse import parse_html_page, clean_html, inner_html
+from localrepo_api.parse import parse_html_page, clean_html, inner_html
 
 from ..exceptions import DisabledAccount
 from ..exceptions import NoTitle
@@ -815,7 +815,7 @@ def parse_user_submissions(submissions_page: BeautifulSoup) -> dict[str, Any]:
 
 def parse_user_favorites(favorites_page: BeautifulSoup) -> dict[str, Any]:
     parsed_submissions = parse_user_submissions(favorites_page)
-    tag_next_page: Optional[Tag] = favorites_page.select_one("a[class~=button][class~=standard][class~=right]")
+    tag_next_page: Optional[Tag] = favorites_page.select_one("a[class~=button][class~=standard][name=next_page]")
     next_page: str = get_attr(tag_next_page, "href").split("/", 3)[-1] if tag_next_page else ""
 
     return {
@@ -835,6 +835,13 @@ def parse_user_journals(journals_page: BeautifulSoup) -> dict[str, Any]:
         "last_page": next_page_tag is None,
     }
 
+def parse_tag_search(results_page: BeautifulSoup) -> dict[str, Any]:
+    last_page: bool = not any(b.text.lower() == "next" for b in results_page.select("form button.button"))
+
+    return {
+        "figures": parse_submission_figures(results_page),
+        "last_page": last_page,
+    }
 
 def parse_watchlist(watch_page: BeautifulSoup) -> tuple[list[tuple[str, str]], int]:
     tag_next: Optional[Tag] = watch_page.select_one("section div.floatright form[method=get]")

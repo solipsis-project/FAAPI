@@ -3,7 +3,7 @@ from dataclasses import KW_ONLY, dataclass
 from datetime import datetime
 from typing import Optional, Type
 
-from faapi.interface.faapi_abc import FAAPI_ABC
+from localrepo_api.interface.faapi_abc import FAAPI_ABC
 
 from .connection import join_url
 from .exceptions import _raise_exception
