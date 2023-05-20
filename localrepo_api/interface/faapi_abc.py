@@ -198,16 +198,6 @@ class FAAPI_ABC(ABC):
         :param page: The page to fetch.
         :return: A list of SubmissionPartial objects and the next page (None if it is the last).
         """
-    
-    @abstractmethod
-    def tag(self, tag: str, page: Any) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
-        """
-        Fetch a user's gallery page.
-
-        :param user: The name of the user (_ characters are allowed).
-        :param page: The page to fetch.
-        :return: A list of SubmissionPartial objects and the next page (None if it is the last).
-        """
 
     @abstractmethod
     def journals(self, user: str, page: Any) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
