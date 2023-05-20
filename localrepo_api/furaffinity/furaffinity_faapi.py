@@ -223,7 +223,7 @@ class FAAPI(FAAPI_BASE):
         return (submissions, info_parsed["next_page"] or None, [])
 
     # noinspection DuplicatedCode
-    def tags(self, tag: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
+    def tag(self, tag: str, page: Any = 1) -> tuple[list[SubmissionPartial], Optional[Any], list[Any]]:
         """
         Fetch all submissions with a given tag.
 
@@ -258,16 +258,9 @@ class FAAPI(FAAPI_BASE):
             "search",
             **options)
         info_parsed: dict[str, Any] = parse_tag_search(page_parsed)
-        author: UserPartial = UserPartial(FAAPI)
-        user_info = info_parsed["user_info"]
-        author.name, author.status, author.title, author.join_date, author.avatar_url = [
-            user_info["name"], user_info["status"],
-            user_info["title"], user_info["join_date"],
-            user_info["avatar_url"]
-        ]
+
         submissions = [SubmissionPartial(FAAPI, SubmissionPartial.Record(**parse_submission_figure(tag))) for tag in info_parsed["figures"]]
-        for s in submissions:
-            s.author = author
+
         return (submissions, (page + 1) if not info_parsed["last_page"] else None, [])
 
     def journals(self, user: str, page: Any = 1) -> tuple[list[JournalPartial], Optional[Any], list[Any]]:
