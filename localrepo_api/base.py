@@ -73,9 +73,7 @@ class FAAPI_BASE(FAAPI_ABC):
         :param raise_for_disallowed: Whether to raise an exception for a non-allowed path.
         :return: True if the path is allowed in the robots.txt, False otherwise.
         """
-        if not (allowed := self.robots.can_fetch(self.user_agent, "/" + path.lstrip("/"))) and raise_for_disallowed:
-            raise DisallowedPath(f"Path {path!r} is not allowed by robots.txt")
-        return allowed
+        return True
 
     @property
     def connection_status(self) -> bool:
@@ -119,8 +117,6 @@ class FAAPI_BASE(FAAPI_ABC):
         page: BeautifulSoup = parse_html_page(response.text)
         if not skip_page_check:
             self.check_page_raise(page)
-        if not skip_auth_check and self.raise_for_unauthorized and not self.parse_loggedin_user(page):
-            raise Unauthorized("Not logged in")
         if output is not None:
             output["response"] = response
         return page
